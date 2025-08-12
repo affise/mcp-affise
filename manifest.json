@@ -1,0 +1,73 @@
+{
+  "dxt_version": "0.1",
+  "name": "affise-mcp-extension",
+  "display_name": "Affise Analytics Extension",
+  "version": "1.0.1",
+  "description": "Connect Claude to your Affise affiliate platform for advanced analytics and automation",
+  "long_description": "This extension enables Claude to interact with your Affise affiliate marketing platform, providing access to offers, statistics, trafficback analysis, and more through natural language queries. Get insights, analyze performance, and automate your affiliate marketing workflows directly through Claude.",
+  "author": {
+    "name": "Affise Extension Developer"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "build/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/build/index.js"],
+      "env": {
+        "AFFISE_BASE_URL": "${user_config.base_url}",
+        "AFFISE_API_KEY": "${user_config.api_key}",
+        "NODE_ENV": "production"
+      }
+    }
+  },
+  "user_config": {
+    "base_url": {
+      "type": "string",
+      "title": "Affise Base URL",
+      "description": "Your Affise API base URL (e.g., https://api-company.affise.com)",
+      "required": true
+    },
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "Your Affise API key from account settings",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "tools": [
+    {
+      "name": "affise_status",
+      "description": "Check Affise configuration status and connection"
+    },
+    {
+      "name": "affise_search_offers",
+      "description": "Search and filter offers using natural language queries"
+    },
+    {
+      "name": "affise_stats", 
+      "description": "Get comprehensive statistics and analytics with natural language"
+    },
+    {
+      "name": "affise_trafficback",
+      "description": "Analyze trafficback performance and optimization opportunities"
+    },
+    {
+      "name": "affise_offer_categories",
+      "description": "Browse and search offer categories"
+    },
+    {
+      "name": "affise_stats_raw",
+      "description": "Get raw statistics with specific parameters"
+    }
+  ],
+  "keywords": ["affise", "affiliate", "marketing", "analytics", "automation", "performance"],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=16.0.0"
+    }
+  }
+}

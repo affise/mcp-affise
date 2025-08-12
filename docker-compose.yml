@@ -1,0 +1,28 @@
+services:
+  # MCP Protocol Server (for direct Claude Desktop integration)
+  affise-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: release
+    container_name: affise-mcp-server
+    environment:
+      - NODE_ENV=production
+      - AFFISE_BASE_URL=${AFFISE_BASE_URL:-https://api-demo.affise.com}
+      - AFFISE_API_KEY=${AFFISE_API_KEY}
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    # This service uses stdio transport, no port exposure needed
+    # Used for direct Claude Desktop integration
+    command: ["node", "build/index.js"]
+    stdin_open: true
+    tty: true
+
+networks:
+  mcp-network:
+    driver: bridge

@@ -1,0 +1,69 @@
+{
+  "name": "affise-mcp-server",
+  "version": "1.2.0",
+  "description": "MCP server for Affise API monitoring",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "affise-mcp-server": "./build/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "npm run security:audit && tsc && chmod +x build/index.js",
+    "build:unsafe": "tsc && chmod +x build/index.js",
+    "start": "npm run build && node build/index.js",
+    "clean": "rm -rf build dist coverage",
+    "rebuild": "npm run clean && npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest --testPathPattern=tests --testPathIgnorePatterns=tests/integration",
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:ci": "jest --coverage --watchAll=false --ci",
+    "security:audit": "npm audit --audit-level moderate",
+    "security:fix": "npm audit fix",
+    "security:check": "npm outdated && npm audit",
+    "docker:build": "docker build -t affise-mcp-server .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "build-dxt": "npm run build && npm run package-dxt",
+    "package-dxt": "dxt pack",
+    "validate-dxt": "dxt validate",
+    "test-dxt": "npm run build-dxt && npm run validate-dxt"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.3",
+    "axios": "^1.10.0",
+    "dotenv": "^16.5.0",
+    "inquirer": "^12.6.3"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.0.5",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.15.27",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.0.5",
+    "supertest": "^7.1.4",
+    "ts-jest": "^29.4.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "build"
+  ],
+  "keywords": [
+    "mcp",
+    "affise",
+    "api",
+    "monitoring",
+    "testing",
+    "enhanced",
+    "caching",
+    "error-handling",
+    "validation"
+  ],
+  "author": "",
+  "license": "ISC"
+}
