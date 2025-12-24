@@ -43,7 +43,7 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd affise-mcp-server
+   cd mcp-affise
    ```
 
 2. **Build the Docker image:**
