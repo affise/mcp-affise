@@ -89,9 +89,9 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 ### Getting Affise API Credentials
 
 1. Log into your Affise dashboard
-2. Navigate to **Settings** → **API**
-3. Generate a new API key
-4. Copy the API key and your instance URL
+2. Navigate to **Settings** → Users → Add & Manage →  Get User
+3. Get current user API key
+4. Copy the API key and your instance API URL
 
 ## Usage with Claude Desktop
 
@@ -125,7 +125,7 @@ npm run validate-dxt    # Validate package
    - Click "Install"
 4. **Configure credentials**:
    - Find "Affise Analytics Extension" in your extensions
-   - Set your Affise Base URL (e.g., `https://api-yourcompany.affise.com`)
+   - Set your Affise API URL (e.g., `https://api-yourcompany.affise.com`)
    - Set your Affise API Key
 5. **Test**: Try using the `affise_status` tool in Claude Desktop
 
