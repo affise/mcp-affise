@@ -26,9 +26,9 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "build-dxt": "npm run build && npm run package-dxt",
-    "package-dxt": "dxt pack",
-    "validate-dxt": "dxt validate",
+    "build-dxt": "npm run build && npm prune --omit=dev && npm run package-dxt && npm install --no-audit --no-fund",
+    "package-dxt": "npx -y -p @anthropic-ai/dxt dxt pack",
+    "validate-dxt": "npx -y -p @anthropic-ai/dxt dxt validate manifest.json",
     "test-dxt": "npm run build-dxt && npm run validate-dxt"
   },
   "dependencies": {

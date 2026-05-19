@@ -43,7 +43,7 @@ process.on('SIGTERM', () => {
 const server = new Server(
   {
     name: 'affise-mcp-server',
-    version: '1.2.0' // Updated version for enhanced features
+    version: '2.0.0'
   },
   {
     capabilities: {
