@@ -74,28 +74,28 @@ export async function getOfferTrackingLink(
   try {
     const url = `${baseUrl}/3.0/admin/offer/${params.offer_id}/tracking-link`;
 
-    // Symfony form expects fields at root level (no nesting). Send only the
-    // fields the form accepts; extra keys would trigger "Method does not allow
-    // extra fields" from the form binder.
-    const body: Record<string, string | number> = {
-      affiliate_id: params.affiliate_id,
-    };
+    // Symfony form expects fields at root level (no nesting) and rejects JSON
+    // with `[affiliate_id].data: Specify not empty 'affiliate_id'`. Send as
+    // application/x-www-form-urlencoded so the form binder reads the fields.
+    // Extra keys would trigger "Method does not allow extra fields".
+    const formBody = new URLSearchParams();
+    formBody.append('affiliate_id', String(params.affiliate_id));
     for (const key of SUB_KEYS) {
       const value = params[key];
       if (value !== undefined && value !== null && value !== '') {
-        body[key] = value;
+        formBody.append(key, String(value));
       }
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.error('Tracking link API URL:', url, 'body:', body);
+      console.error('Tracking link API URL:', url, 'body:', formBody.toString());
     }
 
-    const response = await axios.post(url, body, {
+    const response = await axios.post(url, formBody.toString(), {
       headers: {
         'api-key': apiKey,
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       timeout: 15000,
       validateStatus: status => status < 500,
@@ -131,10 +131,14 @@ export async function getOfferTrackingLink(
       };
     }
 
+    // Affise responds with `{status: 1, tracking_link: "..."}` (numeric status,
+    // not the `"success"` string used by some other endpoints). The public
+    // API does NOT wrap detail responses in `status: "success"` — check the
+    // entity-key presence (`tracking_link`) as the success signal.
     const data = response.data;
     const trackingLink: string | undefined = data?.tracking_link;
 
-    if (data?.status !== 'success' || !trackingLink) {
+    if (!trackingLink) {
       return {
         status: 'error',
         message: data?.error || 'Unexpected response shape from tracking-link endpoint',

@@ -8,7 +8,7 @@
  *  - api-key header is forwarded
  *  - success response is unwrapped into { data.tracking_link, ... }
  *  - guards reject invalid/missing offer_id / affiliate_id
- *  - 4xx error mappings (401/403/404/400) match clobucks-api error shape
+ *  - 4xx error mappings (401/403/404/400) match Affise API error shape
  */
 
 import axios from 'axios';
@@ -27,7 +27,7 @@ function okResponse(trackingLink = 'https://t.example.com/click?pid=2&offer_id=1
     statusText: 'OK',
     headers: {},
     config: {} as any,
-    data: { status: 'success', tracking_link: trackingLink },
+    data: { status: 1, tracking_link: trackingLink },
   } as any;
 }
 
@@ -68,8 +68,11 @@ describe('getOfferTrackingLink — request shape', () => {
       // sub2, sub4..sub8 deliberately omitted
     });
     const [, body] = lastPostCall();
-    expect(body).toEqual({
-      affiliate_id: 99,
+    // Body is application/x-www-form-urlencoded (Symfony form requirement),
+    // parse it back to assert structure.
+    const parsed = Object.fromEntries(new URLSearchParams(body as string));
+    expect(parsed).toEqual({
+      affiliate_id: '99',
       sub1: 'abc',
       sub3: 'xyz',
     });
@@ -85,14 +88,15 @@ describe('getOfferTrackingLink — request shape', () => {
       sub4: 'kept',
     });
     const [, body] = lastPostCall();
-    expect(body).toEqual({ affiliate_id: 99, sub4: 'kept' });
+    const parsed = Object.fromEntries(new URLSearchParams(body as string));
+    expect(parsed).toEqual({ affiliate_id: '99', sub4: 'kept' });
   });
 
-  it('sends api-key header and JSON content type', async () => {
+  it('sends api-key header and form-urlencoded content type', async () => {
     await getOfferTrackingLink(CFG, { offer_id: 1, affiliate_id: 1 });
     const [, , reqConfig] = lastPostCall();
     expect((reqConfig as any).headers['api-key']).toBe('test-key');
-    expect((reqConfig as any).headers['Content-Type']).toBe('application/json');
+    expect((reqConfig as any).headers['Content-Type']).toBe('application/x-www-form-urlencoded');
   });
 });
 
@@ -122,7 +126,7 @@ describe('getOfferTrackingLink — success response', () => {
       statusText: 'OK',
       headers: {},
       config: {} as any,
-      data: { status: 'success' }, // tracking_link missing
+      data: { status: 1 }, // tracking_link missing
     } as never);
     const r = await getOfferTrackingLink(CFG, { offer_id: 1, affiliate_id: 1 });
     expect(r.status).toBe('error');
@@ -187,7 +191,7 @@ describe('getOfferTrackingLink — HTTP error mapping', () => {
     expect(r.message).toMatch(/Authentication failed/i);
   });
 
-  it('403 → forwards clobucks "Access denied" error message', async () => {
+  it('403 → forwards "Access denied" error message', async () => {
     (mockedAxios.post as Mock).mockResolvedValueOnce(errorResponse(403, 'Access denied') as never);
     const r = await getOfferTrackingLink(CFG, { offer_id: 1, affiliate_id: 1 });
     expect(r.status).toBe('error');
