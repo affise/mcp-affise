@@ -245,7 +245,7 @@ export async function getAffiseConversions(
 
     const fullUrl = `${url}?${qp.toString()}`;
     if (process.env.NODE_ENV === 'development') {
-      console.info('Conversions API URL:', fullUrl);
+      console.error('Conversions API URL:', fullUrl);
     }
 
     const response = await axios.get(fullUrl, {

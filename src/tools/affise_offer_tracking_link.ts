@@ -88,7 +88,7 @@ export async function getOfferTrackingLink(
     }
 
     if (process.env.NODE_ENV === 'development') {
-      console.info('Tracking link API URL:', url, 'body:', body);
+      console.error('Tracking link API URL:', url, 'body:', body);
     }
 
     const response = await axios.post(url, body, {

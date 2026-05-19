@@ -136,7 +136,7 @@ export async function getTrafficbackStats(
     const fullUrl = `${url}?${queryParams.toString()}`;
 
     if (process.env.NODE_ENV === 'development') {
-      console.info('Trafficback Stats API URL:', fullUrl);
+      console.error('Trafficback Stats API URL:', fullUrl);
     }
 
     const response = await axios.get(fullUrl, {

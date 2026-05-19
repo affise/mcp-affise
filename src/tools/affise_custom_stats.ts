@@ -390,7 +390,7 @@ export async function getAffiseCustomStats(
 
     // Only log in development
     if (process.env.NODE_ENV === 'development') {
-      console.info('Custom Stats API URL:', fullUrl);
+      console.error('Custom Stats API URL:', fullUrl);
     }
 
     const response = await axios.get(fullUrl, {

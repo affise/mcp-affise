@@ -11,19 +11,20 @@ import { ErrorHandlerService } from './services/error-handler-service.js';
 // Initialize error handler for global error sanitization
 const globalErrorHandler = new ErrorHandlerService();
 
-// Global error handlers for production stability
+// Global error handlers — always log to stderr so the host (Claude Desktop
+// etc.) surfaces the cause in its extension log, not just a silent exit.
 process.on('uncaughtException', (error: Error) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('💥 Uncaught Exception:', globalErrorHandler.sanitizeErrorMessage(error.message));
-    console.error('Stack trace:', globalErrorHandler.sanitizeErrorMessage(error.stack || ''));
+  console.error('[affise-mcp] Uncaught Exception:', globalErrorHandler.sanitizeErrorMessage(error.message));
+  if (error.stack) {
+    console.error('[affise-mcp] Stack:', globalErrorHandler.sanitizeErrorMessage(error.stack));
   }
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason: unknown) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('💥 Unhandled Rejection detected');
-    console.error('Reason:', globalErrorHandler.sanitizeErrorMessage(String(reason)));
+  console.error('[affise-mcp] Unhandled Rejection:', globalErrorHandler.sanitizeErrorMessage(String(reason)));
+  if (reason && typeof reason === 'object' && 'stack' in reason) {
+    console.error('[affise-mcp] Stack:', globalErrorHandler.sanitizeErrorMessage(String((reason as Error).stack)));
   }
   process.exit(1);
 });
@@ -62,7 +63,7 @@ async function initializeConfig() {
     config = await loadConfig();
     
     if (config && process.env.NODE_ENV === 'development') {
-      console.info(`✅ Configuration loaded: ${config.baseUrl}`);
+      console.error(`✅ Configuration loaded: ${config.baseUrl}`);
     }
   } catch (error) {
     // Log error but don't exit - let server start without config
@@ -125,23 +126,28 @@ function setupStatusTool(server: Server) {
 
 // Start the server
 async function main() {
-  // Initialize config without exiting on failure
+  console.error('[affise-mcp] starting; node=' + process.version + ' env_has_creds=' + Boolean(process.env.AFFISE_BASE_URL && process.env.AFFISE_API_KEY));
+
   await initializeConfig();
+  console.error('[affise-mcp] config ' + (config ? 'loaded (' + config.baseUrl + ')' : 'missing — falling back to status-only tool'));
 
   if (config) {
     setupEnhancedHandlers(server, config);
     setupPromptHandlers(server, config);
+    console.error('[affise-mcp] handlers registered (23 tools + 6 prompts)');
   } else {
     setupStatusTool(server);
+    console.error('[affise-mcp] status-only handler registered');
   }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  console.error('[affise-mcp] stdio transport connected, awaiting messages');
 
   // Setup graceful shutdown
   process.on('SIGINT', () => {
     if (process.env.NODE_ENV === 'development') {
-      console.info('\n🛑 Shutting down server...');
+      console.error('\n🛑 Shutting down server...');
     }
     process.exit(0);
   });
@@ -153,8 +159,9 @@ async function main() {
 
 // Error handling
 main().catch((error) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.error('💥 Server error:', error);
+  console.error('[affise-mcp] Server error:', error?.message || error);
+  if (error?.stack) {
+    console.error('[affise-mcp] Stack:', error.stack);
   }
   process.exit(1);
 });
