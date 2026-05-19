@@ -1,40 +1,65 @@
 # Affise MCP Server
 
 [![Docker Build](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com)
-[![Node.js](https://img.shields.io/badge/node.js-24.2-green.svg)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/node.js-18%2B-green.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.8-blue.svg)](https://www.typescriptlang.org)
 
 A Model Context Protocol (MCP) server that provides access to Affise affiliate marketing platform data and analytics. This server enables AI assistants like Claude to interact with Affise APIs for comprehensive affiliate marketing analysis and monitoring using natural language queries.
 
 ## Features
 
-### 🔧 Core Tools
-- **`affise_status`** - Check Affise API availability and health
-- **`affise_stats`** - Get statistics with natural language queries (e.g., "Show me revenue by country last month")
-- **`affise_stats_raw`** - Get raw statistics with specific API parameters
-- **`affise_search_offers`** - Search offers with natural language (e.g., "Find gaming offers for US mobile traffic")
-- **`affise_offer_categories`** - Get offer categories with filtering and sorting options
-- **`affise_smart_offer_search`** 🧠 - Intelligent offer search with automatic category resolution
-- **`affise_smart_stats_search`** 🧠 - Smart stats search with category auto-correction
+### 🔧 Tools (23 total)
 
-### 📊 Smart Prompts
-- **`analyze_offers`** - Expert analysis of offer performance with recommendations
-- **`analyze_trafficback`** - Comprehensive trafficback analysis and optimization insights
-- **`analyze_stats`** - Performance analytics with KPI tracking and comparisons
-- **`workflow_analysis`** - Complete workflow automation for offer discovery and analysis
-- **`auto_analysis`** - Enhanced multi-data-type analysis with intelligent insights
+**Status & search**
+- **`affise_status`** — Check Affise API connectivity and configuration
+- **`affise_search_offers`** — Search offers with natural-language queries (e.g. *"find gaming offers for US mobile"*)
+- **`affise_smart_search`** 🧠 — Intelligent offer search with auto category/country resolution
+- **`affise_offer_categories`** — List/search offer categories
+- **`affise_get_offer`** — Fetch detail for a single offer by id
+- **`affise_offer_tracking_link`** — Generate a tracking link for `offer × affiliate × sub IDs`
 
-### 🚀 Advanced Capabilities
-- **Natural language processing** - Ask questions in plain English
-- **Multi-dimensional data slicing** - Analyze by country, device, OS, browser, time periods
-- **Smart date handling** - Support for relative periods (last7days, thismonth, etc.)
-- **Direct API integration** - Efficient API usage with simplified architecture
-- **Comprehensive error handling** - Robust error reporting and debugging
+**Statistics**
+- **`affise_stats`** — Statistics by natural language (*"top 10 partners by income last week"*)
+- **`affise_stats_raw`** — Structured stats query with `slice` / `fields` / `filter` (Affise `/3.0/stats/custom`)
+- **`affise_conversions_raw`** — Per-event conversion records from `/3.0/stats/conversions`
+- **`affise_get_conversion`** — Fetch a single conversion by id
+- **`affise_trafficback`** — Trafficback reason / partner / geo breakdown
+- **`affise_retention_rate`** — Retention analytics across periods
+- **`affise_time_to_action`** — Time-to-action distribution analytics
+
+**Admin: partners & advertisers**
+- **`affise_list_partners`** — Paginated affiliate list
+- **`affise_get_partner`** — Affiliate detail by id
+- **`affise_list_advertisers`** — Paginated advertiser list
+- **`affise_get_advertiser`** — Advertiser detail by MongoId
+
+**Partner-role (requires a partner-scoped API key)**
+- **`affise_partner_profile`** — Calling affiliate's own profile
+- **`affise_partner_balance`** — Calling affiliate's own balance
+- **`affise_partner_news`** — News feed visible to the affiliate
+- **`affise_partner_offers`** — Offers visible to the affiliate
+- **`affise_partner_live_offers`** — Currently-live offers
+- **`affise_partner_find_subs`** — Discover sub-ID values the affiliate has used
+
+### 📊 Analysis Prompts (6)
+- **`analyze_offers`** — Offer-portfolio analysis (performance, market, technical, competitive, compliance)
+- **`analyze_stats`** — Stats analysis (geo, performance, conversion, traffic)
+- **`analyze_trafficback`** — Trafficback root-cause and optimization insights
+- **`analyze_conversions`** — Conversion-level analysis (fraud review, attribution, partner quality, geo/tech, payouts)
+- **`workflow_analysis`** — End-to-end offer search → analysis pipeline
+- **`auto_analysis`** — Multi-data-type orchestration across stats/conversions/offers
+
+### 🚀 Capabilities
+- **Natural-language queries** — ask in plain English; the parser handles dimensions, top-N, filters, sub-IDs, periods
+- **Auto-resolution** — partner `clientId` → numeric `id`, advertiser/category names → IDs, vertical keywords → category IDs
+- **Response compaction** — tabular outputs (stats, conversions, partners, advertisers) ship a `{columns, rows, dropped_columns?}` envelope, saving 50–70% tokens vs raw JSON
+- **Strict validation** — security-aware input sanitization with defensive coercion of numeric-keyed objects back to arrays
+- **Smart caching** — per-tool TTL (e.g. 5 min for categories, 3 min for stats, longer for static lookups)
 
 ## Installation
 
 ### Prerequisites
-- Node.js 24.2+ (Alpine Linux compatible)
+- Node.js 18+ (LTS recommended)
 - Docker (recommended)
 - Affise API credentials
 
@@ -228,7 +253,7 @@ Claude: I'll search for gaming offers using natural language processing.
 Human: Find gaming offers for US mobile traffic
 
 Claude: I'll search for gaming offers with smart category resolution.
-> Uses affise_smart_offer_search
+> Uses affise_smart_search
 🧠 **Smart Resolution Applied**
 - Searched for: "gaming"
 - Auto-corrected to: "Games & Entertainment" (92% confidence)
@@ -331,14 +356,6 @@ Harness the power of AI-driven search capabilities:
 - Context-aware search suggestions
 - Advanced filtering techniques
 
-### 🔍 **[Enhanced Search Offers Guide](guides/ENHANCED_SEARCH_OFFERS_GUIDE.md)**
-Advanced offer discovery and search optimization:
-- Complex search query construction
-- Multi-criteria filtering strategies
-- Performance-based offer ranking
-- Geographic and vertical targeting
-- Real-time availability checking
-
 ### 📂 **[Offer Categories Examples](guides/OFFER_CATEGORIES_EXAMPLES.md)**
 Master offer categorization and vertical analysis:
 - Complete category taxonomy
@@ -389,7 +406,6 @@ Ready-to-use prompts for common affiliate marketing tasks:
 | [Advertiser Manager Guide](guides/ADVERTISER_MANAGER_GUIDE.md) | Campaign management workflows | Advertiser Managers |
 | [General Manager Guide](guides/GENERAL_MANAGER_GUIDE.md) | Strategic leadership insights | Executives |
 | [AI Search Examples](guides/AI_SEARCH_EXAMPLES.md) | Natural language search techniques | All users |
-| [Enhanced Search Offers Guide](guides/ENHANCED_SEARCH_OFFERS_GUIDE.md) | Advanced offer discovery | Researchers |
 | [Offer Categories Examples](guides/OFFER_CATEGORIES_EXAMPLES.md) | Category analysis and optimization | Analysts |
 | [Trafficback Analysis Examples](guides/TRAFFICBACK_EXAMPLES.md) | Traffic quality assessment | Traffic Managers |
 | [Performance Stats Examples](guides/STATS_EXAMPLES.md) | Analytics and KPI tracking | Analysts |
@@ -423,7 +439,7 @@ Get statistics using natural language queries.
 ```
 
 #### `affise_stats_raw`
-Get raw statistics with specific API parameters.
+Get raw statistics with specific API parameters (`/3.0/stats/custom`).
 ```json
 {
   "name": "affise_stats_raw",
@@ -432,7 +448,9 @@ Get raw statistics with specific API parameters.
     "date_from": "2024-01-01",
     "date_to": "2024-01-07",
     "fields": ["clicks", "conversions", "income"],
-    "country": ["US", "UK", "DE"]
+    "filter": {
+      "country": ["US", "GB", "DE"]
+    }
   }
 }
 ```
@@ -483,17 +501,21 @@ Comprehensive multi-data analysis.
 ```
 affise-mcp-server/
 ├── src/
-│   ├── handlers/           # MCP request handlers
-│   ├── tools/             # API integration tools
-│   ├── types/             # Unified type definitions
-│   ├── prompts/           # Analysis prompt templates
-│   ├── services/          # Core services (cache, error handling, etc.)
-│   ├── shared/            # Shared utilities
-│   └── index.ts           # Main MCP server entry point
-├── build/                 # Compiled JavaScript
-├── logs/                  # Application logs
-├── Dockerfile             # Multi-stage Docker build
-├── docker-compose.yml     # Development environment
+│   ├── handlers/          # MCP request handlers (enhanced-tools, prompts)
+│   ├── tools/             # 23 Affise API integration tools
+│   ├── prompts/           # 6 analysis prompt factories
+│   ├── services/          # Cache, error handling, validation, secure config
+│   ├── types/             # Type definitions + simple-parser
+│   ├── utils/             # Response compaction, stats normalizer
+│   ├── shared/            # Shared utilities (date-utils)
+│   ├── health/            # Health-check helpers
+│   └── index.ts           # Main MCP server entry point (stdio)
+├── tests/                 # Vitest test suite (~380 tests)
+├── guides/                # Usage guides and examples
+├── manifest.json          # Claude Desktop DXT extension manifest
+├── vitest.config.ts       # Vitest configuration
+├── Dockerfile             # Optional Docker build
+├── docker-compose.yml     # Optional Docker development environment
 └── package.json           # Node.js dependencies
 ```
 
@@ -501,15 +523,27 @@ affise-mcp-server/
 
 ```bash
 # Development
-npm run dev                # Start with hot reload
+npm run dev                # Start with hot reload (tsx)
 
 # Building
-npm run build             # Compile TypeScript
+npm run build             # Compile TypeScript (+ npm audit)
+npm run build:unsafe      # Compile without audit (faster iteration)
 npm run clean             # Clean build directory
 npm run rebuild           # Clean and build
 
+# Tests
+npm test                  # Run Vitest suite
+npm run test:watch        # Vitest in watch mode
+npm run test:coverage     # With coverage report
+npm run test:unit         # Unit tests only
+npm run test:integration  # Integration tests only
+
 # Production
-npm start                 # Start MCP server
+npm start                 # Start MCP server (stdio)
+
+# Claude Desktop extension package
+npm run build-dxt         # Build + package as .dxt
+npm run validate-dxt      # Validate the .dxt
 ```
 
 ### Docker Commands
