@@ -1,7 +1,6 @@
-import { searchAffiseOffers, smartSearchAffiseOffers } from '../tools/unified_affise_offers.js';
-import { getAffiseCustomStats, smartGetAffiseStats, createCustomStatsPresets, SliceType, FieldType, ConversionType } from '../tools/affise_custom_stats.js';
-import { getTrafficbackStats, createTrafficbackPresets } from '../tools/affise_trafficback.js';
-import { formatSmartOffersResult, formatSmartStatsResult } from '../tools/smart_pagination_formatters.js';
+import { smartSearchAffiseOffers } from '../tools/unified_affise_offers.js';
+import { smartGetAffiseStats, createCustomStatsPresets, SliceType, FieldType, ConversionType } from '../tools/affise_custom_stats.js';
+import { getTrafficbackStats } from '../tools/affise_trafficback.js';
 
 export interface AutoAnalysisParams {
   // === DATA TYPE SELECTION ===

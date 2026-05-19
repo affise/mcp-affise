@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getCurrentTimestamp } from '../shared/date-utils.js';
+import { compactTabular } from '../utils/compact-response.js';
 
 export interface TrafficbackStatsParams {
   date_from: string;
@@ -199,10 +200,16 @@ export async function getTrafficbackStats(
       .map(stat => stat.country!)
     )).slice(0, 10);
 
+    // Compact tabular: flatten + drop empty cols, report dropped_columns.
+    // Mirrors getAffiseCustomStats / getAffiseConversions for consistency.
+    // analysis_summary (computed from raw `stats[]` above) stays in metadata
+    // so callers don't lose top-reasons / affected-geos signal.
+    const compactedData = compactTabular(data);
+
     return {
       status: 'ok',
       message: `Retrieved ${totalRecords} records`,
-      data,
+      data: compactedData,
       metadata: {
         total_records: totalRecords,
         date_range: `${params.date_from} to ${params.date_to}`,
@@ -224,7 +231,7 @@ export async function getTrafficbackStats(
     };
 
   } catch (error: any) {
-    let message = 'Unknown error';
+    let message: string;
     if (error.code === 'ECONNREFUSED') message = 'Connection refused';
     else if (error.code === 'ETIMEDOUT') message = 'Request timed out';
     else if (error.code === 'ENOTFOUND') message = 'DNS lookup failed';

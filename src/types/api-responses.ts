@@ -324,7 +324,7 @@ export interface AffiseStats {
   [key: string]: string | number; // Allow additional metrics
 }
 
-// Stats responses  
+// Stats responses
 export interface StatsResponse extends BaseApiResponse {
   data?: {
     stats: AffiseStats[];
@@ -334,6 +334,10 @@ export interface StatsResponse extends BaseApiResponse {
     total_records: number;
     key_metrics: Record<string, number>;
   };
+  // Pass-through metadata from the underlying tool (date_range, page_info,
+  // filters_applied, slice_by, total_records). Shape mirrors what each
+  // Affise tool emits — kept loose to avoid coupling.
+  metadata?: Record<string, unknown>;
   cache_info?: CacheInfo;
   suggestions?: string[];
 }

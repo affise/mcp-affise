@@ -92,7 +92,6 @@ export function createStatsAnalysisPrompt(params: StatsAnalysisParams) {
     smart_id,
     sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8,
     goal,
-    trafficback_reason,
     conversionTypes = ['total', 'confirmed', 'pending', 'declined'],
     nonzero,
     page = 1,

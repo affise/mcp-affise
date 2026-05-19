@@ -1171,7 +1171,7 @@ function analyzeOffersIntelligent(offers: OfferSummary[]): {
 function enhanceMessageWithContext(
   originalMessage: string,
   parsedQuery: ParsedQuery | undefined,
-  offerCount: number,
+  _offerCount: number,
   searchType: string
 ): string {
   if (!parsedQuery) {
@@ -1205,7 +1205,7 @@ function generateUnifiedRecommendations(
   parsedQuery: ParsedQuery | undefined,
   offers: OfferSummary[],
   searchType: string,
-  insights: any
+  _insights: any
 ): string[] {
   const recommendations = [];
 

@@ -3,7 +3,7 @@
  */
 
 import { getDateRange } from '../shared/date-utils.js';
-import { SecureInputValidator, type SecureValidationResult } from './secure-input-validator.js';
+import { SecureInputValidator } from './secure-input-validator.js';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -404,6 +404,55 @@ export class ValidationService {
   normalizeStatsParams(params: Record<string, unknown>): Record<string, unknown> {
     const normalized = { ...params };
 
+    // Defensive array coercion: some JSON-RPC paths / form encoders convert
+    // arrays into numeric-keyed objects ({0: "a", 1: "b"}). Affise then rejects
+    // with "params.slice must be an object". Coerce back to real arrays.
+    const ARRAY_KEYS = ['slice', 'fields', 'order', 'conversionTypes'];
+    const FILTER_ARRAY_KEYS = [
+      'country', 'city', 'currency', 'offer', 'goal',
+      'os', 'device',
+      'supplier', 'advertiser', 'partner',
+      'manager', 'advertiser_manager_id', 'affiliate_manager_id',
+      'smart_id', 'payment_status', 'subaccount_id',
+      // Filter.php only supports sub1..sub8 (sub9..sub30 work as slice/order, not filter)
+      'sub1', 'sub2', 'sub3', 'sub4', 'sub5', 'sub6', 'sub7', 'sub8',
+    ];
+
+    const coerceToArray = (v: unknown): unknown => {
+      if (v == null || Array.isArray(v)) return v;
+      if (typeof v === 'object') {
+        const keys = Object.keys(v as object);
+        if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+          return keys
+            .sort((a, b) => Number(a) - Number(b))
+            .map(k => (v as Record<string, unknown>)[k]);
+        }
+      }
+      if (typeof v === 'string') return [v];
+      return v;
+    };
+
+    for (const k of ARRAY_KEYS) {
+      if (k in normalized) normalized[k] = coerceToArray(normalized[k]);
+    }
+    for (const k of FILTER_ARRAY_KEYS) {
+      if (k in normalized) normalized[k] = coerceToArray(normalized[k]);
+    }
+    // Legacy alias: affiliate → partner (filter side uses `partner`, not `affiliate`)
+    if ('affiliate' in normalized && !('partner' in normalized)) {
+      normalized.partner = coerceToArray(normalized.affiliate);
+      delete normalized.affiliate;
+    }
+    // Nested filter object (modern API surface)
+    if (normalized.filter && typeof normalized.filter === 'object' && !Array.isArray(normalized.filter)) {
+      const f = normalized.filter as Record<string, unknown>;
+      for (const k of Object.keys(f)) f[k] = coerceToArray(f[k]);
+      if ('affiliate' in f && !('partner' in f)) {
+        f.partner = f.affiliate;
+        delete f.affiliate;
+      }
+    }
+
     // Handle date range
     if (normalized.period && typeof normalized.period === 'string') {
       const dateRange = getDateRange(normalized.period as any);
@@ -414,6 +463,20 @@ export class ValidationService {
       const dateRange = getDateRange('last7days');
       normalized.date_from = dateRange.from;
       normalized.date_to = dateRange.to;
+    }
+
+    // Hard cap: Affise enforces MAX_DATERANGE_MONTHS=6 (Slice.php:16).
+    // Fail fast locally instead of waiting for a server-side validation error.
+    if (typeof normalized.date_from === 'string' && typeof normalized.date_to === 'string') {
+      const from = new Date(normalized.date_from);
+      const to = new Date(normalized.date_to);
+      if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+        const monthsDiff = (to.getFullYear() - from.getFullYear()) * 12 +
+                           (to.getMonth() - from.getMonth());
+        if (monthsDiff > 6) {
+          throw new Error('Date range exceeds 6 months (Affise MAX_DATERANGE_MONTHS)');
+        }
+      }
     }
 
     // Set defaults
@@ -443,6 +506,8 @@ export class ValidationService {
     }
 
     // Set pagination defaults
+    // TODO: Affise default is 0 (Slice.php), but we keep 1 for backward compat
+    // with callers that may rely on 1-based paging. Revisit when safe.
     if (!normalized.page) {
       normalized.page = 1;
     }
@@ -480,16 +545,33 @@ export class ValidationService {
   }
 
   /**
-   * Validate slice values
+   * Validate slice values against StatisticsEntity::getAllowedSliced(false)
+   * (non-admin user perspective). `advertiser` is admin-only and excluded.
    */
   private isValidSlice(slice: string): boolean {
+    // Source: Affise API StatisticsEntity::getAllowedSliced($isAdmin).
+    // Available to ALL roles + admin-only (advertiser, manager) included for
+    // type completeness (server enforces role at request time).
     const validSlices = [
-      'day', 'hour', 'month', 'quarter', 'year',
-      'country', 'city', 'os', 'os_version', 'device', 'device_model',
-      'browser', 'offer', 'advertiser', 'affiliate', 'goal',
-      'sub1', 'sub2', 'sub3', 'sub4', 'sub5'
+      // Time
+      'year', 'quarter', 'month', 'week', 'day', 'hour',
+      // Offer / goal / geo
+      'offer', 'goal', 'country', 'city',
+      // OS / device / browser
+      'os', 'os_version', 'device', 'device_model', 'device_type',
+      'browser', 'browser_version',
+      // Pages / network
+      'landing', 'prelanding', 'isp', 'conn_type',
+      // Managers (available to all roles, NOT admin-only)
+      'advertiser_manager_id', 'affiliate_manager_id',
+      // Partner-side / other
+      'affiliate', 'affiliate_id', 'smart_id', 'trafficback_reason',
+      // Sub IDs sub1..sub30 (all valid as slice/order, filter capped at sub8)
+      ...Array.from({ length: 30 }, (_, i) => `sub${i + 1}`),
+      // Admin-only (server returns 403 for non-admin roles)
+      'advertiser', 'manager',
     ];
-    
+
     return validSlices.includes(slice);
   }
 
@@ -508,20 +590,15 @@ export class ValidationService {
   }
 
   /**
-   * Validate order field values
+   * Validate order field values.
+   * Accepts an optional `-` prefix for DESC (e.g. "-clicks"). The Affise endpoint
+   * defines ~170 allowed order keys (`GOAPI_STATS_ORDERS_LIST`: slice dimensions
+   * + metric keys × conversion statuses + sub1..sub30, etc.). Rather than
+   * mirror that list here and risk drift, we accept any identifier-shaped
+   * value and let Affise reject unknown keys server-side.
    */
   private isValidOrderField(field: string): boolean {
-    const validOrderFields = [
-      'hour', 'month', 'quarter', 'year', 'day', 'currency', 'offer', 'country', 'city',
-      'os', 'os_version', 'device', 'device_model', 'browser', 'goal',
-      'sub1', 'sub2', 'sub3', 'sub4', 'sub5',
-      'confirmed_earning', 'raw', 'uniq', 'total_count', 'total_revenue',
-      'pending_count', 'pending_revenue', 'declined_count', 'declined_revenue',
-      'hold_count', 'hold_revenue', 'confirmed_count', 'confirmed_revenue',
-      'advertiser', 'affiliate', 'manager'
-    ];
-    
-    return validOrderFields.includes(field);
+    return /^-?[a-z_][a-z0-9_]*$/i.test(field);
   }
 
   /**

@@ -8,8 +8,17 @@ export type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'SEARCH_ERROR'
   | 'STATS_ERROR'
+  | 'CONVERSIONS_ERROR'
   | 'CATEGORIES_ERROR'
   | 'TRAFFICBACK_ERROR'
+  | 'TRACKING_LINK_ERROR'
+  | 'OFFER_LOOKUP_ERROR'
+  | 'PARTNER_LOOKUP_ERROR'
+  | 'ADVERTISER_LOOKUP_ERROR'
+  | 'RETENTION_ERROR'
+  | 'TIME_TO_ACTION_ERROR'
+  | 'CONVERSION_LOOKUP_ERROR'
+  | 'PARTNER_API_ERROR'
   | 'NETWORK_ERROR'
   | 'API_ERROR'
   | 'AUTHENTICATION_ERROR'
@@ -85,8 +94,8 @@ export class ErrorHandlerService {
    */
   private getErrorAnalysis(
     code: ErrorCode,
-    message: string,
-    originalError?: Error
+    _message: string,
+    _originalError?: Error
   ): {
     userMessage: string;
     suggestions: string[];

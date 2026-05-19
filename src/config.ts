@@ -1,5 +1,4 @@
 import * as dotenv from 'dotenv';
-import { promptForConfig } from './utils/input.js';
 import { initializeSecureConfig, getSecureConfigManager, type SecureConfig } from './services/secure-config-manager.js';
 
 dotenv.config();
@@ -43,31 +42,12 @@ export async function loadConfig(): Promise<LegacyConfig | null> {
     return new SecureConfigWrapper(secureConfig);
   }
 
-  // Fallback to development prompts (less secure)
   if (process.env.NODE_ENV === 'development') {
-    console.error("⚠️  Missing AFFISE_BASE_URL or AFFISE_API_KEY in environment variables.");
-    console.error("Please set them in .env file or environment, or provide them interactively:");
-    
-    const interactiveConfig = await promptForConfig();
-    if (interactiveConfig) {
-      // Even interactive config should be secured
-      process.env.AFFISE_BASE_URL = interactiveConfig.baseUrl;
-      process.env.AFFISE_API_KEY = interactiveConfig.apiKey;
-      
-      const secureConfig = await initializeSecureConfig();
-      if (secureConfig) {
-        return new SecureConfigWrapper(secureConfig);
-      }
-      
-      // Fallback to plaintext (not recommended)
-      console.warn('⚠️  Using plaintext configuration (not secure)');
-      return interactiveConfig;
-    }
+    console.error('⚠️  Missing AFFISE_BASE_URL or AFFISE_API_KEY. Set them via .env or Claude Desktop extension settings.');
   }
 
   // For Desktop Extensions/Production - return null silently when no config
   // The status tool will provide setup instructions to users
-
   return null;
 }
 

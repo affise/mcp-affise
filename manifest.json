@@ -2,11 +2,11 @@
   "dxt_version": "0.1",
   "name": "affise-mcp-extension",
   "display_name": "Affise Analytics Extension",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Connect Claude to your Affise affiliate platform for advanced analytics and automation",
-  "long_description": "This extension enables Claude to interact with your Affise affiliate marketing platform, providing access to offers, statistics, trafficback analysis, and more through natural language queries. Get insights, analyze performance, and automate your affiliate marketing workflows directly through Claude.",
+  "long_description": "This extension enables Claude to interact with your Affise affiliate marketing platform: explore offers, query statistics and conversions, analyse trafficback, manage partners/advertisers, generate tracking links, and run partner-side queries. Both natural-language and structured tool calls are supported.",
   "author": {
-    "name": "Affise Extension Developer"
+    "name": "Affise"
   },
   "server": {
     "type": "node",
@@ -24,8 +24,8 @@
   "user_config": {
     "base_url": {
       "type": "string",
-      "title": "Affise Base URL",
-      "description": "Your Affise API base URL (e.g., https://api-company.affise.com)",
+      "title": "Affise API URL",
+      "description": "Your Affise API base URL (e.g., https://api-<company>.affise.com)",
       "required": true
     },
     "api_key": {
@@ -37,37 +37,36 @@
     }
   },
   "tools": [
-    {
-      "name": "affise_status",
-      "description": "Check Affise configuration status and connection"
-    },
-    {
-      "name": "affise_search_offers",
-      "description": "Search and filter offers using natural language queries"
-    },
-    {
-      "name": "affise_stats", 
-      "description": "Get comprehensive statistics and analytics with natural language"
-    },
-    {
-      "name": "affise_trafficback",
-      "description": "Analyze trafficback performance and optimization opportunities"
-    },
-    {
-      "name": "affise_offer_categories",
-      "description": "Browse and search offer categories"
-    },
-    {
-      "name": "affise_stats_raw",
-      "description": "Get raw statistics with specific parameters"
-    }
+    { "name": "affise_status", "description": "Check Affise configuration status and connectivity" },
+    { "name": "affise_search_offers", "description": "Search and filter offers using natural language queries" },
+    { "name": "affise_stats", "description": "Natural-language statistics queries (revenue, conversions, traffic)" },
+    { "name": "affise_stats_raw", "description": "Structured statistics query with slice/fields/filter (/3.0/stats/custom)" },
+    { "name": "affise_offer_categories", "description": "Browse and search offer categories" },
+    { "name": "affise_trafficback", "description": "Trafficback analytics and reason breakdown" },
+    { "name": "affise_smart_search", "description": "Intelligent offer search across name, category, country, payouts" },
+    { "name": "affise_conversions_raw", "description": "Per-event conversion records from /3.0/stats/conversions" },
+    { "name": "affise_get_offer", "description": "Fetch detail for a single offer by id" },
+    { "name": "affise_get_conversion", "description": "Fetch detail for a single conversion by id" },
+    { "name": "affise_list_partners", "description": "Paginated affiliate (partner) list — admin role" },
+    { "name": "affise_get_partner", "description": "Fetch detail for a single affiliate by id — admin role" },
+    { "name": "affise_list_advertisers", "description": "Paginated advertiser list" },
+    { "name": "affise_get_advertiser", "description": "Fetch detail for a single advertiser by MongoId" },
+    { "name": "affise_offer_tracking_link", "description": "Generate a tracking link for offer × affiliate × sub IDs" },
+    { "name": "affise_retention_rate", "description": "Retention analytics across periods" },
+    { "name": "affise_time_to_action", "description": "Time-to-action distribution analytics" },
+    { "name": "affise_partner_profile", "description": "Calling affiliate's own profile — partner role" },
+    { "name": "affise_partner_balance", "description": "Calling affiliate's own balance — partner role" },
+    { "name": "affise_partner_news", "description": "News feed visible to the calling affiliate — partner role" },
+    { "name": "affise_partner_offers", "description": "Offers visible to the calling affiliate — partner role" },
+    { "name": "affise_partner_live_offers", "description": "Live (active) offers for the calling affiliate — partner role" },
+    { "name": "affise_partner_find_subs", "description": "Discover sub-ID values the affiliate has used — partner role" }
   ],
   "keywords": ["affise", "affiliate", "marketing", "analytics", "automation", "performance"],
   "license": "MIT",
   "compatibility": {
     "platforms": ["darwin", "win32", "linux"],
     "runtimes": {
-      "node": ">=16.0.0"
+      "node": ">=18.0.0"
     }
   }
 }

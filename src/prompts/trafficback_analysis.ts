@@ -1,5 +1,3 @@
-import { TrafficbackStatsParams } from "../tools/affise_trafficback.js";
-
 export interface TrafficbackAnalysisParams {
   trafficback_data: string;  // JSON string of trafficback data
   analysis_type?: 'comprehensive' | 'geo' | 'reason' | 'partner' | 'advertiser' | 'technical' | 'goal';

@@ -20,7 +20,7 @@ process.on('uncaughtException', (error: Error) => {
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason: unknown, promise: Promise<any>) => {
+process.on('unhandledRejection', (reason: unknown) => {
   if (process.env.NODE_ENV === 'development') {
     console.error('💥 Unhandled Rejection detected');
     console.error('Reason:', globalErrorHandler.sanitizeErrorMessage(String(reason)));
@@ -127,20 +127,17 @@ function setupStatusTool(server: Server) {
 async function main() {
   // Initialize config without exiting on failure
   await initializeConfig();
-  
+
   if (config) {
-    // Setup full handlers if config is available
     setupEnhancedHandlers(server, config);
     setupPromptHandlers(server, config);
   } else {
-    // Setup basic status tool if config is missing
     setupStatusTool(server);
   }
-  
-  // Connect transport
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  
+
   // Setup graceful shutdown
   process.on('SIGINT', () => {
     if (process.env.NODE_ENV === 'development') {
@@ -148,7 +145,7 @@ async function main() {
     }
     process.exit(0);
   });
-  
+
   process.on('SIGTERM', () => {
     process.exit(0);
   });
