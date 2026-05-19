@@ -3,13 +3,30 @@
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { setupEnhancedHandlers, TOOLS } from '../../src/handlers/enhanced-tools.js';
 import { setupPromptHandlers } from '../../src/handlers/prompts.js';
 
-// Mock axios for API calls
-jest.mock('axios');
-const mockedAxios = require('axios');
+// Mock axios for API calls. Vitest's vi.mock doesn't auto-mock named exports
+// the way jest did (specifically `create`), so we provide an explicit factory.
+vi.mock('axios', () => {
+  const create = vi.fn();
+  const instance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  };
+  create.mockReturnValue(instance);
+  return {
+    default: { create, get: vi.fn(), post: vi.fn() },
+    create,
+    get: vi.fn(),
+    post: vi.fn(),
+  };
+});
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const mockedAxios = (await import('axios')).default as any;
 
 describe('MCP Handlers Integration', () => {
   let server: Server;
@@ -38,7 +55,7 @@ describe('MCP Handlers Integration', () => {
 
     // Mock successful API responses
     mockedAxios.create.mockReturnValue({
-      get: jest.fn().mockResolvedValue({
+      get: vi.fn().mockResolvedValue({
         status: 200,
         data: {
           status: 'success',
@@ -52,7 +69,7 @@ describe('MCP Handlers Integration', () => {
           ]
         }
       }),
-      post: jest.fn().mockResolvedValue({
+      post: vi.fn().mockResolvedValue({
         status: 200,
         data: { status: 'success' }
       })
@@ -60,7 +77,7 @@ describe('MCP Handlers Integration', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Tools Registration', () => {
@@ -182,8 +199,8 @@ describe('MCP Handlers Integration', () => {
     it('should handle API errors gracefully in mocked environment', async () => {
       // Mock API error
       mockedAxios.create.mockReturnValue({
-        get: jest.fn().mockRejectedValue(new Error('Network Error')),
-        post: jest.fn().mockRejectedValue(new Error('Network Error'))
+        get: vi.fn().mockRejectedValue(new Error('Network Error')),
+        post: vi.fn().mockRejectedValue(new Error('Network Error'))
       });
 
       // This should not throw when setting up handlers

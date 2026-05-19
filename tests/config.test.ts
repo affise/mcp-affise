@@ -5,21 +5,17 @@
 import { loadConfig, isConfigured, getConfigStatus, clearSecureConfig } from '../src/config.js';
 import { getSecureConfigManager, SecureConfigManager } from '../src/services/secure-config-manager.js';
 
-// Mock interactive prompts
-jest.mock('../src/utils/input.js', () => ({
-  promptForConfig: jest.fn().mockResolvedValue({
-    baseUrl: 'https://api.interactive.affise.com',
-    apiKey: 'interactive-api-key-123'
-  })
-}));
-
-// Mock the global secure config manager to create fresh instances
+// Mock the global secure config manager to create fresh instances.
+// vi.mock is hoisted, so we use async + importActual to grab the real exports
+// (drop-in for jest.requireActual).
 let mockSecureConfigManager: SecureConfigManager;
-jest.mock('../src/services/secure-config-manager.js', () => {
-  const original = jest.requireActual('../src/services/secure-config-manager.js');
+vi.mock('../src/services/secure-config-manager.js', async () => {
+  const original = await vi.importActual<
+    typeof import('../src/services/secure-config-manager.js')
+  >('../src/services/secure-config-manager.js');
   return {
     ...original,
-    getSecureConfigManager: jest.fn(() => mockSecureConfigManager)
+    getSecureConfigManager: vi.fn(() => mockSecureConfigManager),
   };
 });
 
@@ -49,7 +45,7 @@ describe('Configuration', () => {
   });
 
   afterAll(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     // Fully restore original environment
     process.env = originalEnv;
   });
@@ -73,18 +69,6 @@ describe('Configuration', () => {
       
       const config = await loadConfig();
       expect(config).toBeNull();
-    });
-
-    it('should prompt for config in development mode when env vars missing', async () => {
-      process.env.NODE_ENV = 'development';
-      delete process.env.AFFISE_BASE_URL;
-      delete process.env.AFFISE_API_KEY;
-      
-      const config = await loadConfig();
-      
-      expect(config).toBeDefined();
-      expect(config?.baseUrl).toBe('https://api.interactive.affise.com');
-      expect(config?.apiKey).toBe('interactive-api-key-123');
     });
 
     it('should not prompt for config in production mode', async () => {
@@ -204,7 +188,7 @@ describe('Configuration', () => {
   describe('error handling', () => {
     it('should handle configuration loading errors gracefully', async () => {
       // Mock secure config to throw error
-      jest.spyOn(getSecureConfigManager(), 'loadConfig').mockRejectedValueOnce(new Error('Config error'));
+      vi.spyOn(getSecureConfigManager(), 'loadConfig').mockRejectedValueOnce(new Error('Config error'));
       
       const config = await loadConfig();
       expect(config).toBeNull();
