@@ -211,9 +211,36 @@ export class ErrorHandlerService {
           retryable: true
         };
 
-      default:
+      case 'PARTNER_API_ERROR':
+      case 'PARTNER_LOOKUP_ERROR':
+        // Pass through the tool's own message — the tools build precise
+        // hints like "Partner (affiliate) API key required — admin keys
+        // do not have access to /3.1/partner/me" that the LLM needs verbatim.
         return {
-          userMessage: 'An unexpected error occurred.',
+          userMessage: _message || 'Partner API error.',
+          suggestions: [
+            'Ensure you are using a partner-role API key (not an admin key) for /3.1/partner/* and /3.0/partner/* endpoints',
+            'Check the partner endpoint URL is correct',
+            'Verify the partner has access to the requested data'
+          ],
+          retryable: false
+        };
+
+      case 'ADVERTISER_LOOKUP_ERROR':
+      case 'CONVERSION_LOOKUP_ERROR':
+      case 'RETENTION_ERROR':
+      case 'TIME_TO_ACTION_ERROR':
+        return {
+          userMessage: _message || 'Affise API error.',
+          suggestions: ['Verify the entity ID exists', 'Check your API key role'],
+          retryable: false
+        };
+
+      default:
+        // Preserve the tool's own message when present — the original was
+        // chosen by the tool author for clarity. Fall back to generic if empty.
+        return {
+          userMessage: _message || 'An unexpected error occurred.',
           suggestions: [
             'Try the request again',
             'Check your input parameters',
@@ -274,15 +301,18 @@ export class ErrorHandlerService {
       sanitized = sanitized.replace(pattern, '[REDACTED]');
     }
 
-    // Remove common sensitive keywords and their values
+    // Remove sensitive keyword=value or keyword: value assignments.
+    // Whitespace alone after a keyword (`key required`, `auth checks`) is
+    // legitimate English and must NOT trigger redaction — require an
+    // explicit `=` or `:` separator. Optional whitespace after the
+    // separator is fine (e.g. `Authorization: Bearer xxx`).
     const sensitiveKeywords = [
-      'password', 'secret', 'key', 'token', 'auth', 'credential',
-      'api_key', 'apikey', 'access_token', 'refresh_token'
+      'password', 'secret', 'token', 'auth', 'credential',
+      'api_key', 'api-key', 'apikey', 'access_token', 'refresh_token'
     ];
 
     for (const keyword of sensitiveKeywords) {
-      // Remove key-value pairs
-      const keyValuePattern = new RegExp(`${keyword}[=:\\s]+[^\\s,}]+`, 'gi');
+      const keyValuePattern = new RegExp(`\\b${keyword}\\s*[=:]\\s*[^\\s,}]+`, 'gi');
       sanitized = sanitized.replace(keyValuePattern, `${keyword}=[REDACTED]`);
     }
 

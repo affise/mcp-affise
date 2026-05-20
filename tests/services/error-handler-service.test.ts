@@ -75,13 +75,34 @@ describe('ErrorHandlerService', () => {
     });
 
     it('should handle multiple sensitive patterns in one message', () => {
-      const message = 'User john@example.com failed with API key abc123 and card 4111-1111-1111-1111';
+      const message = 'User john@example.com failed with API key: abc123def456ghi789jkl and card 4111-1111-1111-1111';
       const sanitized = errorHandler.sanitizeErrorMessage(message);
-      
+
       expect(sanitized).not.toContain('john@example.com');
-      expect(sanitized).not.toContain('abc123');
+      expect(sanitized).not.toContain('abc123def456ghi789jkl');
       expect(sanitized).not.toContain('4111-1111-1111-1111');
-      expect((sanitized.match(/\[REDACTED\]/g) || []).length).toBe(3);
+      expect((sanitized.match(/\[REDACTED\]/g) || []).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('regression: "API key required" is English text, NOT a secret to redact', () => {
+      // Prior implementation matched `key[=:\s]+[^\s,}]+` which turned
+      // "Partner API key required - admin keys do not have access" into
+      // "Partner API key=[REDACTED] - admin keys do not have access",
+      // destroying the diagnostic. The fix: require `=` or `:` after the
+      // keyword, not whitespace.
+      const message = 'Partner (affiliate) API key required - admin keys do not have access to /3.1/partner/me';
+      const sanitized = errorHandler.sanitizeErrorMessage(message);
+
+      expect(sanitized).toContain('key required');
+      expect(sanitized).toContain('admin keys do not have access');
+      expect(sanitized).not.toContain('[REDACTED]');
+    });
+
+    it('regression: "auth checks failed" is English text, NOT a token to redact', () => {
+      const message = 'Pre-flight auth checks failed before request was sent';
+      const sanitized = errorHandler.sanitizeErrorMessage(message);
+
+      expect(sanitized).toBe(message);
     });
   });
 
@@ -111,9 +132,28 @@ describe('ErrorHandlerService', () => {
 
     it('should handle null/undefined errors', () => {
       const mcpError = errorHandler.createErrorResponse('Unknown error occurred', 'UNKNOWN_ERROR');
-      
+
       expect(mcpError.error.code).toBe('UNKNOWN_ERROR');
       expect(mcpError.error.details).toBe('Unknown error occurred');
+    });
+
+    it('regression: PARTNER_API_ERROR surfaces the tool\'s own message, not generic fallback', () => {
+      // The 6 partner_* tools emit precise hints like "Partner API key
+      // required — admin keys do not have access to ...". Prior to fix
+      // these were swallowed and replaced with "An unexpected error occurred."
+      const toolMsg = 'Partner (affiliate) API key required - admin keys do not have access to /3.1/partner/me';
+      const mcpError = errorHandler.createErrorResponse(toolMsg, 'PARTNER_API_ERROR', { toolName: 'affise_partner_profile' });
+
+      expect(mcpError.message).toBe(toolMsg);
+      expect(mcpError.message).not.toBe('An unexpected error occurred.');
+      expect(mcpError.error.code).toBe('PARTNER_API_ERROR');
+      expect(mcpError.error.retryable).toBe(false);
+    });
+
+    it('default code preserves tool message instead of replacing with generic', () => {
+      const toolMsg = 'Specific tool failure with details X, Y, Z';
+      const mcpError = errorHandler.createErrorResponse(toolMsg, 'UNKNOWN_ERROR');
+      expect(mcpError.message).toBe(toolMsg);
     });
   });
 

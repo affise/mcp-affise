@@ -337,12 +337,17 @@ describe('ErrorHandlerService Sanitization', () => {
     });
 
     it('should preserve error context while removing credentials', () => {
-      const message = 'Failed to connect to API with key=abc123';
+      // Use api_key=<long-hex>. The bare word "key" was removed from the
+      // sensitive-keyword list to stop false positives in English text
+      // ("Partner API key required" used to become "Partner API key=[REDACTED]").
+      const message = 'Failed to connect to API with api_key=abc123def456ghi789jkl';
       const sanitized = errorHandler.sanitizeErrorMessage(message);
 
+      // Context survives.
       expect(sanitized).toContain('Failed to connect to API');
-      expect(sanitized).toContain('key=[REDACTED]');
-      expect(sanitized).not.toContain('abc123');
+      // Secret value is gone.
+      expect(sanitized).not.toContain('abc123def456ghi789jkl');
+      expect(sanitized).toContain('[REDACTED]');
     });
 
     it('should handle JSON-like error messages', () => {
