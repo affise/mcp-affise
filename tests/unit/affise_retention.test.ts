@@ -31,7 +31,7 @@ describe('getRetentionRate — URL serialization', () => {
     await getRetentionRate(CFG, {
       date_from: '2026-04-01',
       date_to:   '2026-05-01',
-      offer: 42,
+      offer_id: 42,
       base_event: 'install',
       events: ['level_up', 'purchase'],
       timezone:  'UTC',
@@ -58,7 +58,7 @@ describe('getRetentionRate — URL serialization', () => {
   it('caps limit at 100', async () => {
     await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'install', events: ['level_up'], limit: 9999,
+      offer_id: 1, base_event: 'install', events: ['level_up'], limit: 9999,
     });
     expect(captureUrl().get('limit')).toBe('100');
   });
@@ -74,16 +74,16 @@ describe('getRetentionRate — guards', () => {
 
   it('rejects missing date_from / date_to', async () => {
     const r = await getRetentionRate(CFG, {
-      offer: 1, base_event: 'i', events: ['a'],
+      offer_id: 1, base_event: 'i', events: ['a'],
     } as any);
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/date_from.*date_to/);
     expect((mockedAxios.get as Mock).mock.calls.length).toBe(0);
   });
 
-  it('rejects missing/invalid offer', async () => {
+  it('rejects missing/invalid offer_id', async () => {
     for (const bad of [0, -1, 1.5, undefined as any]) {
-      const r = await getRetentionRate(CFG, { ...BASE, offer: bad as any, base_event: 'i', events: ['a'] });
+      const r = await getRetentionRate(CFG, { ...BASE, offer_id: bad as any, base_event: 'i', events: ['a'] });
       expect(r.status).toBe('error');
       expect(r.message).toMatch(/offer/);
     }
@@ -91,19 +91,19 @@ describe('getRetentionRate — guards', () => {
   });
 
   it('rejects missing base_event', async () => {
-    const r = await getRetentionRate(CFG, { ...BASE, offer: 1, base_event: '', events: ['a'] } as any);
+    const r = await getRetentionRate(CFG, { ...BASE, offer_id: 1, base_event: '', events: ['a'] } as any);
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/base_event/);
   });
 
   it('rejects non-array events', async () => {
-    const r = await getRetentionRate(CFG, { ...BASE, offer: 1, base_event: 'i', events: 'a' } as any);
+    const r = await getRetentionRate(CFG, { ...BASE, offer_id: 1, base_event: 'i', events: 'a' } as any);
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/events.*array/);
   });
 
   it('rejects empty events array', async () => {
-    const r = await getRetentionRate(CFG, { ...BASE, offer: 1, base_event: 'i', events: [] });
+    const r = await getRetentionRate(CFG, { ...BASE, offer_id: 1, base_event: 'i', events: [] });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/events/);
   });
@@ -120,7 +120,7 @@ describe('getRetentionRate — error mapping', () => {
     } as never);
     const r = await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'i', events: ['a'],
+      offer_id: 1, base_event: 'i', events: ['a'],
     });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/Authentication failed/);
@@ -133,7 +133,7 @@ describe('getRetentionRate — error mapping', () => {
     } as never);
     const r = await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'i', events: ['a'],
+      offer_id: 1, base_event: 'i', events: ['a'],
     });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/Access denied/);
@@ -146,7 +146,7 @@ describe('getRetentionRate — error mapping', () => {
     } as never);
     const r = await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'i', events: ['foo'],
+      offer_id: 1, base_event: 'i', events: ['foo'],
     });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/Retention rate API error: 400/);
@@ -160,7 +160,7 @@ describe('getRetentionRate — error mapping', () => {
     } as never);
     const r = await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'i', events: ['a'],
+      offer_id: 1, base_event: 'i', events: ['a'],
     });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/Retention rate API error: 500.*Internal Server Error/);
@@ -173,7 +173,7 @@ describe('getRetentionRate — error mapping', () => {
     });
     const r = await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'i', events: ['a'],
+      offer_id: 1, base_event: 'i', events: ['a'],
     });
     expect(r.status).toBe('error');
     expect(r.message).toBeTruthy();
@@ -199,7 +199,7 @@ describe('getRetentionRate — happy path', () => {
     } as never);
     const r = await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'install', events: ['login', 'purchase'],
+      offer_id: 1, base_event: 'install', events: ['login', 'purchase'],
     });
     expect(r.status).toBe('ok');
     expect(r.message).toMatch(/Retention rate retrieved/);
@@ -213,7 +213,7 @@ describe('getRetentionRate — happy path', () => {
     } as never);
     await getRetentionRate(CFG, {
       date_from: '2026-04-01', date_to: '2026-05-01',
-      offer: 1, base_event: 'i', events: ['a'],
+      offer_id: 1, base_event: 'i', events: ['a'],
     });
     const [, reqConfig] = (mockedAxios.get as Mock).mock.calls[0];
     expect((reqConfig as any).headers['api-key']).toBe('test-key');

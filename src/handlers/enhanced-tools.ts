@@ -525,13 +525,13 @@ export const TOOLS = [
   },
   {
     name: 'affise_retention_rate',
-    description: 'Retention rate / cohort analysis for a specific offer (GET /3.0/stats/retentionrate). For a given base_event (goal name), returns retention buckets across follow-up events. Admin only. All of date_from, date_to, offer, base_event, events are REQUIRED. Use this when /stats/custom cannot answer cohort-style retention questions. Event names must match goals configured on the offer.',
+    description: 'Retention rate / cohort analysis for a specific offer (GET /3.0/stats/retentionrate). For a given base_event (goal name), returns retention buckets across follow-up events. Admin only. All of date_from, date_to, offer_id, base_event, events are REQUIRED. Use this when /stats/custom cannot answer cohort-style retention questions. Event names must match goals configured on the offer.',
     inputSchema: {
       type: 'object',
       properties: {
         date_from:    { type: 'string', description: 'Start date YYYY-MM-DD (required)' },
         date_to:      { type: 'string', description: 'End date YYYY-MM-DD (required)' },
-        offer:        { type: 'integer', minimum: 1, description: 'Offer ID (required)' },
+        offer_id:     { type: 'integer', minimum: 1, description: 'Offer ID (required)' },
         base_event:   { type: 'string', pattern: '^[a-zA-Z].*', description: 'Base goal name to anchor the cohort (required). Must start with a letter.' },
         events:       {
           type: 'array',
@@ -545,7 +545,7 @@ export const TOOLS = [
         page:         { type: 'integer', minimum: 1, description: 'Page (default 1)' },
         limit:        { type: 'integer', minimum: 1, maximum: 100, description: 'Per page (default 100, max 100)' }
       },
-      required: ['date_from', 'date_to', 'offer', 'base_event', 'events'],
+      required: ['date_from', 'date_to', 'offer_id', 'base_event', 'events'],
       additionalProperties: false
     }
   },
@@ -699,6 +699,13 @@ export const TOOLS = [
     }
   }
 ];
+
+// All 23 Affise tools are read-only against the API. `openWorldHint` signals
+// that results depend on external state (the Affise backend), so the host
+// should not cache or treat outputs as deterministic.
+for (const tool of TOOLS as Array<{ annotations?: Record<string, unknown> }>) {
+  tool.annotations = { readOnlyHint: true, openWorldHint: true };
+}
 
 /**
  * Enhanced tool handler class
@@ -1467,10 +1474,10 @@ export class EnhancedToolHandler {
         { toolName: 'affise_retention_rate', args }
       );
     }
-    const offer = Number(args?.offer);
-    if (!Number.isInteger(offer) || offer <= 0) {
+    const offerId = Number(args?.offer_id);
+    if (!Number.isInteger(offerId) || offerId <= 0) {
       return this.errorHandler.createErrorResponse(
-        'offer is required and must be a positive integer',
+        'offer_id is required and must be a positive integer',
         'VALIDATION_ERROR',
         { toolName: 'affise_retention_rate', args }
       );
@@ -1494,7 +1501,7 @@ export class EnhancedToolHandler {
       const result = await getRetentionRate(cfg, {
         date_from:    args.date_from,
         date_to:      args.date_to,
-        offer,
+        offer_id:     offerId,
         base_event:   args.base_event,
         events:       args.events,
         timezone:     args.timezone,
@@ -2197,7 +2204,11 @@ export function setupEnhancedHandlers(
       };
       
     } catch (error: any) {
+      // Spec: tool execution failures set isError so hosts/clients can
+      // distinguish a thrown failure from a tool that returned a payload
+      // describing an error condition.
       return {
+        isError: true,
         content: [{
           type: 'text',
           text: JSON.stringify({

@@ -16,7 +16,9 @@ import { getCurrentTimestamp } from '../shared/date-utils.js';
 export interface RetentionRateParams {
   date_from: string;                // YYYY-MM-DD, REQUIRED
   date_to: string;                  // YYYY-MM-DD, REQUIRED
-  offer: number;                    // REQUIRED
+  offer_id: number;                 // REQUIRED — Affise offer numeric id
+                                    // (wire-serialized as `offer=` for the
+                                    // Go-side /3.0/stats/retentionrate endpoint)
   base_event: string;               // REQUIRED — base goal name; regex ^[a-zA-Z]
   events: string[];                 // REQUIRED — array of event names; regex ^[a-zA-Z]
   timezone?: string;                // IANA timezone; backend defaults to Europe/Moscow
@@ -48,10 +50,10 @@ export async function getRetentionRate(
       timestamp: getCurrentTimestamp(),
     };
   }
-  if (!Number.isInteger(params.offer) || params.offer <= 0) {
+  if (!Number.isInteger(params.offer_id) || params.offer_id <= 0) {
     return {
       status: 'error',
-      message: 'offer is required and must be a positive integer',
+      message: 'offer_id is required and must be a positive integer',
       timestamp: getCurrentTimestamp(),
     };
   }
@@ -75,7 +77,9 @@ export async function getRetentionRate(
     const qp = new URLSearchParams();
     qp.append('date_from',  params.date_from);
     qp.append('date_to',    params.date_to);
-    qp.append('offer',      String(params.offer));
+    // The Go endpoint still expects `offer=` on the wire even though the
+    // MCP-side parameter is named `offer_id` (matches the rest of the surface).
+    qp.append('offer',      String(params.offer_id));
     qp.append('base_event', params.base_event);
     // events is Array[string] per the public docs — serialize as repeated
     // events[]=name1&events[]=name2 so the Symfony form binds it as an array.
