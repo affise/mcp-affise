@@ -138,4 +138,85 @@ describe('getRetentionRate — error mapping', () => {
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/Access denied/);
   });
+
+  it('400 with .error detail → forwards as "API error: 400 — <detail>"', async () => {
+    (mockedAxios.get as Mock).mockResolvedValueOnce({
+      status: 400, statusText: 'Bad Request', headers: {}, config: {} as any,
+      data: { error: 'unknown event name: foo' },
+    } as never);
+    const r = await getRetentionRate(CFG, {
+      date_from: '2026-04-01', date_to: '2026-05-01',
+      offer: 1, base_event: 'i', events: ['foo'],
+    });
+    expect(r.status).toBe('error');
+    expect(r.message).toMatch(/Retention rate API error: 400/);
+    expect(r.message).toMatch(/unknown event name: foo/);
+  });
+
+  it('500 without detail → falls back to statusText', async () => {
+    (mockedAxios.get as Mock).mockResolvedValueOnce({
+      status: 500, statusText: 'Internal Server Error', headers: {}, config: {} as any,
+      data: {},
+    } as never);
+    const r = await getRetentionRate(CFG, {
+      date_from: '2026-04-01', date_to: '2026-05-01',
+      offer: 1, base_event: 'i', events: ['a'],
+    });
+    expect(r.status).toBe('error');
+    expect(r.message).toMatch(/Retention rate API error: 500.*Internal Server Error/);
+  });
+
+  it('network error (ECONNREFUSED) → mapped via mapNetworkError', async () => {
+    (mockedAxios.get as Mock).mockRejectedValueOnce({
+      code: 'ECONNREFUSED',
+      message: 'connect ECONNREFUSED 127.0.0.1:80',
+    });
+    const r = await getRetentionRate(CFG, {
+      date_from: '2026-04-01', date_to: '2026-05-01',
+      offer: 1, base_event: 'i', events: ['a'],
+    });
+    expect(r.status).toBe('error');
+    expect(r.message).toBeTruthy();
+  });
+});
+
+describe('getRetentionRate — happy path', () => {
+  beforeEach(() => {
+    (mockedAxios.get as Mock).mockReset();
+  });
+
+  it('200 → returns ok with Go API response under data', async () => {
+    const apiPayload = {
+      data: [
+        { day: 0, retention: 1.0 },
+        { day: 1, retention: 0.78 },
+        { day: 7, retention: 0.42 },
+      ],
+    };
+    (mockedAxios.get as Mock).mockResolvedValueOnce({
+      status: 200, statusText: 'OK', headers: {}, config: {} as any,
+      data: apiPayload,
+    } as never);
+    const r = await getRetentionRate(CFG, {
+      date_from: '2026-04-01', date_to: '2026-05-01',
+      offer: 1, base_event: 'install', events: ['login', 'purchase'],
+    });
+    expect(r.status).toBe('ok');
+    expect(r.message).toMatch(/Retention rate retrieved/);
+    expect(r.data).toEqual(apiPayload);
+  });
+
+  it('sends api-key header and Accept: application/json', async () => {
+    (mockedAxios.get as Mock).mockResolvedValueOnce({
+      status: 200, statusText: 'OK', headers: {}, config: {} as any,
+      data: { data: [] },
+    } as never);
+    await getRetentionRate(CFG, {
+      date_from: '2026-04-01', date_to: '2026-05-01',
+      offer: 1, base_event: 'i', events: ['a'],
+    });
+    const [, reqConfig] = (mockedAxios.get as Mock).mock.calls[0];
+    expect((reqConfig as any).headers['api-key']).toBe('test-key');
+    expect((reqConfig as any).headers['Accept']).toBe('application/json');
+  });
 });
