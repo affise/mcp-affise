@@ -19,7 +19,7 @@ function listOk(advertisers: any[] = [], paginationOverride: any = {}) {
   return {
     status: 200, statusText: 'OK', headers: {}, config: {} as any,
     data: {
-      status: 'success',
+      status: 1,
       advertisers,
       pagination: { page: 1, per_page: 100, total_count: advertisers.length, ...paginationOverride },
     },
@@ -29,7 +29,7 @@ function listOk(advertisers: any[] = [], paginationOverride: any = {}) {
 function detailOk(advertiser: any = { id: MONGO_ID, title: 'A' }) {
   return {
     status: 200, statusText: 'OK', headers: {}, config: {} as any,
-    data: { status: 'success', advertiser },
+    data: { status: 1, advertiser },
   } as any;
 }
 

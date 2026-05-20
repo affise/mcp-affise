@@ -141,8 +141,10 @@ export async function getAdvertiser(
     const mapped = mapHttpStatusToError(response, 'advertiser detail', { notFoundMsg: 'Advertiser not found' });
     if (mapped) return mapped;
 
+    // BaseController::resultSuccess emits numeric `status: 1` — entity-key
+    // presence is the success signal, not the string "success".
     const data = response.data;
-    if (data?.status !== 'success' || !data?.advertiser) {
+    if (!data?.advertiser) {
       return {
         status: 'error',
         message: data?.error || 'Unexpected response shape from advertiser detail endpoint',

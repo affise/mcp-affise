@@ -130,8 +130,10 @@ export async function getPartner(
     const mapped = mapHttpStatusToError(response, 'partner detail', { notFoundMsg: 'Affiliate does not exist' });
     if (mapped) return mapped;
 
+    // BaseController::resultSuccess emits numeric `status: 1` — entity-key
+    // presence is the success signal, not the string "success".
     const data = response.data;
-    if (data?.status !== 'success' || !data?.partner) {
+    if (!data?.partner) {
       return {
         status: 'error',
         message: data?.error || 'Unexpected response shape from partner detail endpoint',

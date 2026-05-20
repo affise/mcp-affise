@@ -15,7 +15,7 @@ const CFG = { baseUrl: 'https://api.example.com', apiKey: 'test-key' };
 function okResponse(offer: any = { id: 42, title: 'Test', status: 'active' }) {
   return {
     status: 200, statusText: 'OK', headers: {}, config: {} as any,
-    data: { status: 'success', offer },
+    data: { status: 1, offer },
   } as any;
 }
 
@@ -91,7 +91,7 @@ describe('getOfferDetail — error mapping', () => {
   it('unexpected shape (no offer field) → error', async () => {
     (mockedAxios.get as Mock).mockResolvedValueOnce({
       status: 200, statusText: 'OK', headers: {}, config: {} as any,
-      data: { status: 'success' },
+      data: { status: 1 },
     } as never);
     const r = await getOfferDetail(CFG, { offer_id: 1 });
     expect(r.status).toBe('error');

@@ -19,7 +19,7 @@ function listOk(partners: any[] = [], paginationOverride: any = {}) {
   return {
     status: 200, statusText: 'OK', headers: {}, config: {} as any,
     data: {
-      status: 'success',
+      status: 1,
       partners,
       pagination: { page: 1, per_page: 100, total_count: partners.length, ...paginationOverride },
     },
@@ -29,7 +29,7 @@ function listOk(partners: any[] = [], paginationOverride: any = {}) {
 function detailOk(partner: any = { id: 7, name: 'P' }) {
   return {
     status: 200, statusText: 'OK', headers: {}, config: {} as any,
-    data: { status: 'success', partner },
+    data: { status: 1, partner },
   } as any;
 }
 

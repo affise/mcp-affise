@@ -74,8 +74,10 @@ export async function getOfferDetail(
       };
     }
 
+    // BaseController::resultSuccess emits numeric `status: 1` (RESPONSE_STATUS_SUCCESS),
+    // NOT the string "success" — entity-key presence is the success signal.
     const data = response.data;
-    if (data?.status !== 'success' || !data?.offer) {
+    if (!data?.offer) {
       return {
         status: 'error',
         message: data?.error || 'Unexpected response shape from offer detail endpoint',
