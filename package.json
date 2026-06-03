@@ -11,6 +11,7 @@
     "dev": "tsx src/index.ts",
     "build": "npm run security:audit && tsc && chmod +x build/index.js",
     "build:unsafe": "tsc && chmod +x build/index.js",
+    "prepublishOnly": "npm run build",
     "start": "npm run build && node build/index.js",
     "clean": "rm -rf build dist coverage",
     "rebuild": "npm run clean && npm run build",
@@ -55,5 +56,13 @@
     "analytics"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/affise/mcp-affise.git"
+  },
+  "homepage": "https://github.com/affise/mcp-affise#readme",
+  "bugs": {
+    "url": "https://github.com/affise/mcp-affise/issues"
+  }
 }
