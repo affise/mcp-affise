@@ -24,9 +24,11 @@ on:
         default: patch
         options: [patch, minor, major, none]
       dist_tag:
-        description: 'npm dist-tag (use "beta"/"next" for pre-releases, "latest" for stable).'
+        description: 'npm dist-tag ("latest" for stable, "next"/"beta" for pre-releases).'
         required: true
-        default: 'latest'
+        type: choice
+        default: latest
+        options: [latest, next, beta]
 
 concurrency:
   group: publish-${{ github.workflow }}
@@ -99,34 +101,50 @@ jobs:
         # with build:unsafe, and running the full build again here would
         # re-trigger the security audit, which CI intentionally defers to
         # Dependabot. The build/ dir from the earlier step is what ships.
-        run: npm publish --ignore-scripts --provenance --access public --tag "${{ inputs.dist_tag }}"
+        # inputs.dist_tag goes through an env var (not direct ${{ }}
+        # interpolation into the run line) so bash quoting applies and the
+        # value can't break out of the command. It's also a fixed choice list.
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: npm publish --ignore-scripts --provenance --access public --tag "$DIST_TAG"
 
       - name: Push version commit + tag
         # Only when we actually bumped — mirrors the npm release back to
         # GitHub. HTTPS + x-access-token ensures the workflow token is
         # honored regardless of any SSH config on the self-hosted runner.
         if: inputs.release != 'none'
+        # All template values go through env vars consumed by bash — no
+        # untrusted input is interpolated into the run line directly.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF: ${{ inputs.ref }}
+          TAG: ${{ steps.version.outputs.tag }}
+          REPO: ${{ github.repository }}
         run: |
-          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-          git push "$REMOTE" "HEAD:${{ inputs.ref }}"
-          git push "$REMOTE" "${{ steps.version.outputs.tag }}"
-          echo "::notice::Pushed ${{ steps.version.outputs.tag }} → ${{ inputs.ref }}"
+          case "$REF" in *[!A-Za-z0-9._/-]*) echo "::error::Invalid ref '$REF'"; exit 1;; esac
+          case "$TAG" in v[0-9]*) ;; *) echo "::error::Unexpected tag '$TAG'"; exit 1;; esac
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git push "$REMOTE" "HEAD:${REF}"
+          git push "$REMOTE" "${TAG}"
+          echo "::notice::Pushed ${TAG} → ${REF}"
 
       - name: Job summary
+        env:
+          TAG: ${{ steps.version.outputs.tag || steps.current.outputs.tag }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+          REF: ${{ inputs.ref }}
+          RELEASE: ${{ inputs.release }}
         run: |
-          TAG="${{ steps.version.outputs.tag || steps.current.outputs.tag }}"
+          NAME="$(node -p "require('./package.json').name")"
           {
             echo "## Published to npm"
             echo ""
-            echo "- Package: \`$(node -p "require('./package.json').name")@${TAG#v}\`"
-            echo "- dist-tag: \`${{ inputs.dist_tag }}\`"
-            echo "- From ref: \`${{ inputs.ref }}\` (release: \`${{ inputs.release }}\`)"
+            echo "- Package: \`${NAME}@${TAG#v}\`"
+            echo "- dist-tag: \`${DIST_TAG}\`"
+            echo "- From ref: \`${REF}\` (release: \`${RELEASE}\`)"
             echo ""
             echo '```bash'
-            echo "npm install $(node -p "require('./package.json').name")@${TAG#v}"
+            echo "npm install ${NAME}@${TAG#v}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
