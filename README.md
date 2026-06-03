@@ -142,7 +142,7 @@ npm run validate-dxt    # Validate package
 
 #### Step 3: Install in Claude Desktop
 1. **Build the extension**: Run `npm run build-dxt` in your project directory
-2. **Find the .dxt file**: Look for `affise-mcp-extension-1.0.0.dxt` in your project root
+2. **Find the .dxt file**: Look for `mcp-affise.dxt` in your project root
 3. **Install in Claude Desktop**:
    - Open Claude Desktop Settings
    - Go to Extensions section
