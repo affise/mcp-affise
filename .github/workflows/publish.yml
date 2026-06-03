@@ -1,0 +1,132 @@
+name: Publish to npm
+
+# Manual-only: click "Run workflow" in the GitHub UI, or
+#   gh workflow run publish.yml -f release=patch
+# Builds + tests the package, optionally bumps the version (npm version,
+# which commits + tags), publishes to the public npm registry using the
+# NPM_TOKEN secret, then pushes the version commit + tag back to GitHub so
+# the Releases / Tags page stays in lockstep with what landed on npm.
+#
+# Requires repo secret: NPM_TOKEN  (npmjs.com → Access Tokens → Automation —
+# Automation tokens bypass 2FA, which is what CI needs).
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to publish from (branch / tag / sha)'
+        required: true
+        default: 'main'
+      release:
+        description: 'Version bump (npm version). Pick "none" to publish package.json as-is.'
+        required: true
+        type: choice
+        default: patch
+        options: [patch, minor, major, none]
+      dist_tag:
+        description: 'npm dist-tag (use "beta"/"next" for pre-releases, "latest" for stable).'
+        required: true
+        default: 'latest'
+
+concurrency:
+  group: publish-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  # contents: write — the "Push version commit + tag" step pushes the
+  # `npm version` commit and its vX.Y.Z tag back to the repo.
+  contents: write
+  # id-token: write — lets npm mint a provenance attestation via GitHub
+  # OIDC (the "verified" badge on npmjs). Only works on GitHub-hosted
+  # runners; needs npm >= 9.5 (Node 22 ships a newer one).
+  id-token: write
+
+jobs:
+  publish:
+    name: build + test + publish
+    # GitHub-hosted: this is a PUBLIC repo, so the org's self-hosted pool
+    # is neither reachable nor safe here (forked PRs could run on it).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout ${{ inputs.ref }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          # Need full history + the branch (not detached HEAD) so the
+          # version-bump commit can be pushed back to ${{ inputs.ref }}.
+          fetch-depth: 0
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          # Writes ~/.npmrc with `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`
+          # so `npm publish` below authenticates from the NPM_TOKEN secret.
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (skip security audit — already covered by Dependabot)
+        run: npm run build:unsafe
+
+      - name: Run test suite
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Bump version
+        id: version
+        if: inputs.release != 'none'
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # npm version creates a commit + an annotated vX.Y.Z tag.
+          NEW_VERSION="$(npm version ${{ inputs.release }} -m "chore(release): %s")"
+          echo "tag=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Bumped to $NEW_VERSION"
+
+      - name: Read current version
+        if: inputs.release == 'none'
+        id: current
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm
+        # prepublishOnly (npm run build) is skipped: we already built above
+        # with build:unsafe, and running the full build again here would
+        # re-trigger the security audit, which CI intentionally defers to
+        # Dependabot. The build/ dir from the earlier step is what ships.
+        run: npm publish --ignore-scripts --provenance --access public --tag "${{ inputs.dist_tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push version commit + tag
+        # Only when we actually bumped — mirrors the npm release back to
+        # GitHub. HTTPS + x-access-token ensures the workflow token is
+        # honored regardless of any SSH config on the self-hosted runner.
+        if: inputs.release != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push "$REMOTE" "HEAD:${{ inputs.ref }}"
+          git push "$REMOTE" "${{ steps.version.outputs.tag }}"
+          echo "::notice::Pushed ${{ steps.version.outputs.tag }} → ${{ inputs.ref }}"
+
+      - name: Job summary
+        run: |
+          TAG="${{ steps.version.outputs.tag || steps.current.outputs.tag }}"
+          {
+            echo "## Published to npm"
+            echo ""
+            echo "- Package: \`$(node -p "require('./package.json').name")@${TAG#v}\`"
+            echo "- dist-tag: \`${{ inputs.dist_tag }}\`"
+            echo "- From ref: \`${{ inputs.ref }}\` (release: \`${{ inputs.release }}\`)"
+            echo ""
+            echo '```bash'
+            echo "npm install $(node -p "require('./package.json').name")@${TAG#v}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
