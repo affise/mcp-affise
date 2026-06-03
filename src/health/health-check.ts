@@ -71,12 +71,11 @@ if (require.main === module) {
     .then(result => {
       // Output for Docker health check (simple)
       if (process.argv.includes('--simple')) {
-        console.log(result.status === 'healthy' ? 'HEALTHY' : 'UNHEALTHY');
         process.exit(result.status === 'healthy' ? 0 : 1);
       }
       
       // Detailed output for debugging
-      console.log(JSON.stringify(result, null, 2));
+
       process.exit(result.status === 'healthy' ? 0 : 1);
     })
     .catch(error => {

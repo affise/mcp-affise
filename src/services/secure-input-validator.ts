@@ -4,6 +4,7 @@
  */
 
 import { SecurityAuditLogger } from '../utils/security-utils.js';
+import { securityLogger } from './security-logger.js';
 
 export interface SecureValidationResult {
   isValid: boolean;
@@ -73,14 +74,24 @@ export class SecureInputValidator {
 
     // Log security violations
     if (result.attackVectors.length > 0) {
+      // Legacy logging
       SecurityAuditLogger.logSecurityViolation(
         `Input validation detected potential attack in ${fieldName}`,
-        { 
-          field: fieldName, 
+        {
+          field: fieldName,
           attackVectors: result.attackVectors,
-          threatLevel: result.threatLevel 
+          threatLevel: result.threatLevel
         }
       );
+
+      // New comprehensive logging
+      securityLogger.logSuspiciousInput({
+        field: fieldName,
+        attackVectors: result.attackVectors,
+        threatLevel: result.threatLevel
+      }).catch(err => {
+        console.error('Failed to log suspicious input:', err);
+      });
     }
 
     return result;
@@ -199,6 +210,17 @@ export class SecureInputValidator {
    * Validate array inputs
    */
   private static validateArray(input: any, fieldName: string, result: SecureValidationResult): void {
+    // Defensive coercion: some JSON-RPC / form encoders deliver arrays as
+    // numeric-keyed objects ({0:"a",1:"b"}). Restore arrays before validating
+    // so we don't reject legitimate inputs with confusing "must be an array".
+    if (!Array.isArray(input) && input && typeof input === 'object') {
+      const keys = Object.keys(input);
+      if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+        input = keys
+          .sort((a, b) => Number(a) - Number(b))
+          .map(k => (input as Record<string, unknown>)[k]);
+      }
+    }
     if (!Array.isArray(input)) {
       result.errors.push(`${fieldName} must be an array`);
       result.isValid = false;
@@ -298,6 +320,18 @@ export class SecureInputValidator {
         }
         
         sanitizedObject[key] = this.sanitizeString(value);
+      } else if (Array.isArray(value)) {
+        // Recursively validate nested arrays as arrays (typeof [] === 'object'
+        // so without this check they would mis-route through validateObject
+        // and fail with "<field> must be an object" — the historical bug behind
+        // "params.slice must be an object" errors for valid array slice inputs.
+        const nestedResult = this.validateAndSanitize(value, `${fieldName}.${key}`, 'array');
+        if (!nestedResult.isValid) {
+          result.errors.push(...nestedResult.errors);
+          result.isValid = false;
+          return;
+        }
+        sanitizedObject[key] = nestedResult.sanitizedValue;
       } else if (typeof value === 'object' && value !== null) {
         // Recursively validate nested objects
         const nestedResult = this.validateAndSanitize(value, `${fieldName}.${key}`, 'object');

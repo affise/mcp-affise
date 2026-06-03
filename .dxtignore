@@ -1,0 +1,46 @@
+# Patterns are anchored to the repo root with a leading slash so they don't
+# accidentally match the same-named directories inside node_modules (e.g.
+# node_modules/debug/src/, which would break the packed bundle).
+
+# Test artifacts
+/coverage/
+/tests/
+/vitest.config.ts
+/jest.config.js
+
+# Source (build/ is what we actually ship for execution)
+/src/
+/tsconfig.json
+
+# Editor / IDE
+.vscode/
+.idea/
+.DS_Store
+
+# CI / dev infrastructure
+/.github/
+/.drone.yml
+/.claude/
+/.specify/
+/specs/
+/docs/
+
+# Dev configs / lockfiles for tooling we don't need at runtime
+.eslintrc*
+.prettier*
+
+# Local-only files
+.env
+.env.local
+.env.*.local
+check.py
+
+# Docker (extension users don't run Docker)
+/Dockerfile
+/docker-compose.yml
+/nginx.conf
+/certs/
+
+# Already-built DXT shouldn't be inside itself
+*.dxt
+mcp-affise.dxt

@@ -5,6 +5,7 @@ import { createWorkflowAnalysisPrompt } from '../prompts/workflow_analysis.js';
 import { createAutoAnalysisPrompt } from '../prompts/auto_analysis.js';
 import { createStatsAnalysisPrompt } from '../prompts/stats_analysis.js';
 import { createTrafficbackAnalysisPrompt } from '../prompts/trafficback_analysis.js';
+import { createConversionsAnalysisPrompt } from '../prompts/conversions_analysis.js';
 import { SliceType, FieldType, ConversionType } from '../tools/affise_custom_stats.js';
 
 export function setupPromptHandlers(server: Server, config: { baseUrl: string; apiKey: string } | null) {
@@ -422,6 +423,37 @@ export function setupPromptHandlers(server: Server, config: { baseUrl: string; a
               required: false
             }
           ]
+        },
+        {
+          name: 'analyze_conversions',
+          description: 'Analyze raw Affise conversion records (output of affise_conversions_raw) — fraud review, attribution paths, partner quality, geo/tech breakdowns, payouts. Use this after fetching conversions to get an expert lens on per-event data.',
+          arguments: [
+            {
+              name: 'conversions_data',
+              description: 'JSON of conversions data (typically from affise_conversions_raw result.data)',
+              required: true
+            },
+            {
+              name: 'analysis_type',
+              description: 'Lens: comprehensive | fraud_review | attribution | partner_quality | geo_tech | payouts (default: comprehensive)',
+              required: false
+            },
+            {
+              name: 'focus_areas',
+              description: 'Array of focus areas (e.g. ["sub5 quality", "TR traffic", "decline reasons"])',
+              required: false
+            },
+            {
+              name: 'comparison_criteria',
+              description: 'Criteria for side-by-side comparison (e.g. "partners 3554 vs 4108", "this week vs last week")',
+              required: false
+            },
+            {
+              name: 'format',
+              description: 'Output format: summary | detailed | actionable (default: detailed)',
+              required: false
+            }
+          ]
         }
       ]
     };
@@ -450,23 +482,54 @@ export function setupPromptHandlers(server: Server, config: { baseUrl: string; a
 
     if (request.params.name === 'analyze_trafficback') {
       const args = request.params.arguments || {};
-      
+
       if (!args.trafficback_data) {
         throw new Error('trafficback_data argument is required');
       }
-      
+
       const validFormats = ['summary', 'detailed', 'actionable'] as const;
       const format = validFormats.includes(args.format as any) ? args.format as 'summary' | 'detailed' | 'actionable' : undefined;
-      
+
       const validAnalysisTypes = ['comprehensive', 'geo', 'reason', 'partner', 'advertiser', 'technical', 'goal'] as const;
       const analysis_type = validAnalysisTypes.includes(args.analysis_type as any) ? args.analysis_type as 'comprehensive' | 'geo' | 'reason' | 'partner' | 'advertiser' | 'technical' | 'goal' : undefined;
-      
+
       return createTrafficbackAnalysisPrompt({
         trafficback_data: args.trafficback_data,
         analysis_type: analysis_type,
         focus_areas: args.focus_areas ? (Array.isArray(args.focus_areas) ? args.focus_areas : [args.focus_areas]) : undefined,
         comparison_criteria: args.comparison_criteria,
         format: format
+      });
+    }
+
+    if (request.params.name === 'analyze_conversions') {
+      const args = request.params.arguments || {};
+
+      if (!args.conversions_data) {
+        throw new Error('conversions_data argument is required');
+      }
+
+      const validFormats = ['summary', 'detailed', 'actionable'] as const;
+      const format = validFormats.includes(args.format as any)
+        ? (args.format as 'summary' | 'detailed' | 'actionable')
+        : undefined;
+
+      const validAnalysisTypes = [
+        'comprehensive', 'fraud_review', 'attribution',
+        'partner_quality', 'geo_tech', 'payouts',
+      ] as const;
+      const analysis_type = validAnalysisTypes.includes(args.analysis_type as any)
+        ? (args.analysis_type as typeof validAnalysisTypes[number])
+        : undefined;
+
+      return createConversionsAnalysisPrompt({
+        conversions_data: args.conversions_data,
+        analysis_type,
+        focus_areas: args.focus_areas
+          ? (Array.isArray(args.focus_areas) ? args.focus_areas : [args.focus_areas])
+          : undefined,
+        comparison_criteria: args.comparison_criteria,
+        format,
       });
     }
 

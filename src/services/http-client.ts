@@ -51,7 +51,6 @@ export class HttpClientService {
     this.client.interceptors.request.use(
       (config) => {
         if (process.env.NODE_ENV === 'development') {
-          const sanitizedUrl = this.errorHandler.sanitizeErrorMessage(config.url || 'unknown');
           console.debug(`HTTP Request: ${config.method?.toUpperCase()} [URL_REDACTED]`);
         }
         return config;
@@ -72,8 +71,7 @@ export class HttpClientService {
       },
       (error) => {
         const status = error.response?.status;
-        const sanitizedUrl = this.errorHandler.sanitizeErrorMessage(error.config?.url || 'unknown');
-        
+
         if (status === 429) {
           console.warn(`Rate limit hit for request`);
         } else if (status >= 500) {

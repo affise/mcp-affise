@@ -1,7 +1,6 @@
-import { searchAffiseOffers, smartSearchAffiseOffers } from '../tools/unified_affise_offers.js';
-import { getAffiseCustomStats, smartGetAffiseStats, createCustomStatsPresets, SliceType, FieldType, ConversionType } from '../tools/affise_custom_stats.js';
-import { getTrafficbackStats, createTrafficbackPresets } from '../tools/affise_trafficback.js';
-import { formatSmartOffersResult, formatSmartStatsResult } from '../tools/smart_pagination_formatters.js';
+import { smartSearchAffiseOffers } from '../tools/unified_affise_offers.js';
+import { smartGetAffiseStats, createCustomStatsPresets, SliceType, FieldType, ConversionType } from '../tools/affise_custom_stats.js';
+import { getTrafficbackStats } from '../tools/affise_trafficback.js';
 
 export interface AutoAnalysisParams {
   // === DATA TYPE SELECTION ===
@@ -111,9 +110,9 @@ export async function createAutoAnalysisPrompt(params: AutoAnalysisParams) {
 
   // Development logging
   if (process.env.NODE_ENV === 'development') {
-    console.info('=== AUTO ANALYSIS PROMPT ===');
-    console.info('Data type:', data_type);
-    console.info('Parameters:', { search_query, date_from, date_to, period, preset });
+    console.error('=== AUTO ANALYSIS PROMPT ===');
+    console.error('Data type:', data_type);
+    console.error('Parameters:', { search_query, date_from, date_to, period, preset });
   }
 
   try {
@@ -165,7 +164,7 @@ Would you like to proceed with the complete dataset or analyze the sample?`
         if (offersResult.status === 'sample' || offersResult.status === 'complete') {
           offersData = { offers: offersResult.data };
           if (process.env.NODE_ENV === 'development') {
-            console.info('Smart offers retrieved:', offersResult.data?.length || 0);
+            console.error('Smart offers retrieved:', offersResult.data?.length || 0);
           }
         } else {
           errors.push(`Offers fetch error: ${offersResult.message}`);
@@ -320,7 +319,7 @@ Would you like to proceed with the complete dataset or analyze the sample?`
         if (statsResult.status === 'sample' || statsResult.status === 'complete') {
           statsData = { stats: statsResult.data };
           if (process.env.NODE_ENV === 'development') {
-            console.info('Smart stats retrieved:', statsResult.data?.length || 0, 'records');
+            console.error('Smart stats retrieved:', statsResult.data?.length || 0, 'records');
           }
         } else {
           errors.push(`Stats fetch error: ${statsResult.message}`);
@@ -402,7 +401,7 @@ Would you like to proceed with the complete dataset or analyze the sample?`
         if (trafficbackResult.status === 'ok') {
           trafficbackData = trafficbackResult.data;
           if (process.env.NODE_ENV === 'development') {
-            console.info('Trafficback retrieved:', trafficbackResult.metadata?.total_records || 0, 'records');
+            console.error('Trafficback retrieved:', trafficbackResult.metadata?.total_records || 0, 'records');
           }
         } else {
           errors.push(`Trafficback fetch error: ${trafficbackResult.message}`);
@@ -613,7 +612,7 @@ ${slice.length > 0 ? `\n- **Analysis Dimensions**: ${slice.join(', ')}` : ''}
 Conduct a systematic analysis following this enhanced framework and provide comprehensive, data-driven insights with specific, prioritized recommendations for optimizing ${data_type === 'combined' ? 'integrated campaign performance' : dataTypeLabels[data_type].toLowerCase()}.`;
 
     if (process.env.NODE_ENV === 'development') {
-      console.info('Generated comprehensive analysis prompt for', dataTypeLabels[data_type]);
+      console.error('Generated comprehensive analysis prompt for', dataTypeLabels[data_type]);
     }
 
     return {

@@ -54,10 +54,6 @@ export class SecureConfigManager {
       // Clear the plaintext variable from memory
       secureMemoryClear(plaintextApiKey);
 
-      // Only log in development mode to avoid MCP protocol issues
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔒 API key encrypted and stored securely in memory');
-      }
       SecurityAuditLogger.logConfigEncrypted();
 
       return this.createSecureConfig();
@@ -222,6 +218,23 @@ export class SecureConfigManager {
   }
 
   /**
+   * Public accessor for the decrypted API key.
+   * Use this in auth middlewares that previously read process.env.AFFISE_API_KEY
+   * directly — that env var is cleared after loadConfig() for security.
+   * Throws if configuration is not loaded.
+   */
+  public getApiKey(): string {
+    return this.getDecryptedApiKey();
+  }
+
+  /**
+   * Public accessor for the configured Affise base URL.
+   */
+  public getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  /**
    * Get configuration status for diagnostic tools
    */
   public getConfigStatus(): { configured: boolean; message: string; encrypted: boolean } {
@@ -252,6 +265,46 @@ export function getSecureConfigManager(): SecureConfigManager {
     globalSecureConfigManager = new SecureConfigManager();
   }
   return globalSecureConfigManager;
+}
+
+/**
+ * Resolved server-wide Affise credentials (no per-user session attached).
+ *
+ * `source` distinguishes how the credentials were obtained:
+ *  - 'secure-config': decrypted from SecureConfigManager (the canonical path)
+ *  - 'env':           read directly from process.env (only when manager isn't
+ *                     ready yet, e.g. before loadConfig() has run)
+ *  - 'none':          neither source provided anything; baseUrl/apiKey will be ''
+ */
+export interface ResolvedServerCredentials {
+  baseUrl: string;
+  apiKey: string;
+  source: 'secure-config' | 'env' | 'none';
+}
+
+/**
+ * Resolve server-wide Affise credentials with the canonical priority chain:
+ * SecureConfigManager (decrypted in-memory) → process.env fallback.
+ *
+ * Background: loadConfig() wipes AFFISE_API_KEY from process.env after
+ * encrypting it (security measure). Code that reads env directly after that
+ * would see an empty key — always go through this helper.
+ */
+export function resolveServerCredentials(): ResolvedServerCredentials {
+  const mgr = getSecureConfigManager();
+  if (mgr.isConfigurationReady()) {
+    return {
+      baseUrl: mgr.getBaseUrl(),
+      apiKey: mgr.getApiKey(),
+      source: 'secure-config',
+    };
+  }
+  const envBaseUrl = process.env.AFFISE_BASE_URL || '';
+  const envApiKey = process.env.AFFISE_API_KEY || '';
+  if (envBaseUrl && envApiKey) {
+    return { baseUrl: envBaseUrl, apiKey: envApiKey, source: 'env' };
+  }
+  return { baseUrl: '', apiKey: '', source: 'none' };
 }
 
 /**

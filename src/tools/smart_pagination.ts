@@ -397,7 +397,7 @@ export class SmartPaginationEngine {
   /**
    * Continue fetching from where we left off
    */
-  async continueFromToken<TParams, TResponse>(
+  async continueFromToken<TResponse>(
     continuationToken: string,
     options: {
       onProgress?: (progress: { 
@@ -542,7 +542,7 @@ export class SmartPaginationEngine {
     }
   }
 
-  private generateConfirmationMessage(totalItems: number, userIntent: string): string {
+  private generateConfirmationMessage(totalItems: number, _userIntent: string): string {
     const size = totalItems > this.config.hugeDatasetThreshold ? 'huge' : 'large';
     const timeEstimate = this.estimateFullFetchTime(totalItems);
     

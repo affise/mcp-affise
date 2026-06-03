@@ -248,8 +248,8 @@ const categoriesResult = await affise_offer_categories({});
 
 // For each category, get performance stats
 for (const category of categoriesResult.data.categories) {
-  const stats = await affise_stats_ai({
-    naturalQuery: `Performance stats for ${category.title} category offers`
+  const stats = await affise_stats({
+    query: `Performance stats for ${category.title} category offers`
   });
 }
 ```
@@ -338,7 +338,7 @@ Validate parameters before API calls.
 ## Related Tools
 
 - `affise_search_offers`: Use category IDs from this tool to filter offers
-- `affise_stats_ai`: Analyze performance by category
+- `affise_stats`: Analyze performance by category (natural-language query)
 - `affise_status`: Check API connectivity before using this tool
 
 This tool is essential for understanding and working with the Affise category structure, enabling more effective offer management and analysis workflows.

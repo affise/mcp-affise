@@ -1,65 +1,63 @@
 import axios from 'axios';
 import { getCurrentTimestamp } from '../shared/date-utils.js';
 import { AffiseStatsPagination, SmartPaginationResult } from './smart_pagination.js';
+import { compactTabular } from '../utils/compact-response.js';
+import { normalizeStatsOrder, normalizeStatsFields } from '../utils/stats-normalizer.js';
 
-// Complete slice options based on real API
-type SliceType = 
-  | 'advertiser_manager_id'  // Advertiser manager ID
-  | 'advertiser'             // Advertiser ID
-  | 'affiliate'              // Affiliate/Partner ID/pub/ partner/publisher
-  | 'affiliate_manager_id'   // Affiliate manager ID
-  | 'browser'                // Browser type (Chrome, Firefox, etc.)
-  | 'browser_version'        // Browser version
-  | 'city'                   // City name
-  | 'conn_type'              // Connection type (WiFi, Mobile, etc.)
-  | 'country'                // Country code (US, GB, etc.)
-  | 'day'                    // Date (day-by-day breakdown)
-  | 'device'                 // Device type (desktop, mobile, tablet)
-  | 'device_model'           // Specific device model
-  | 'goal'                   // Goal/conversion goal
-  | 'hour'                   // Hour of day (0-23)
-  | 'isp'                    // Internet Service Provider
-  | 'landing'                // Landing page ID
-  | 'manager'                // Manager ID
-  | 'month'                  // Month (monthly breakdown)
-  | 'offer'                  // Offer ID
-  | 'os'                     // Operating System
-  | 'os_version'             // Operating System version
-  | 'prelanding'             // Pre-landing page ID
-  | 'quarter'                // Quarter (quarterly breakdown)
-  | 'smart_id'               // SmartLink category ID
-  | 'sub1'                   // Sub ID 1 (tracking parameter)
-  | 'sub2'                   // Sub ID 2
-  | 'sub3'                   // Sub ID 3
-  | 'sub4'                   // Sub ID 4
-  | 'sub5'                   // Sub ID 5
-  | 'sub6'                   // Sub ID 6 (additional tracking)
-  | 'sub7'                   // Sub ID 7 (additional tracking)
-  | 'sub8'                   // Sub ID 8 (additional tracking)
-  | 'trafficback_reason'     // Reason for traffic being sent back
-  | 'year';                  // Year (yearly breakdown)
+// Slice values allowed by StatisticsEntity::getAllowedSliced(false).
+// Generated sub1..sub30 union avoids 30 hand-written lines.
+type SubSliceKey = `sub${1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30}`;
 
-// Complete field options based on real API
-type FieldType = 
-  | 'clicks'         // Total clicks
-  | 'hosts'          // Unique traffic sources/hosts
-  | 'earnings'       // Net earnings (revenue - payouts)
-  | 'income'         // Gross income/revenue
-  | 'noincome'       // income = 0 and conversion status = 'confirmed'
-  | 'payouts'        // Affiliate payouts/commissions
-  | 'conversions'    // Total conversions
-  | 'cr'             // Conversion Rate (conversions/clicks)
-  | 'affiliate_epc'  // Affiliate EPC
-  | 'ratio'          // Conversion ratio metrics
-  | 'epc'            // Earnings Per Click (revenue/clicks)
-  | 'trafficback'    // Redirected/bounced traffic
-  | 'afprice'        // Affiliate price/payout amount
-  | 'ctr'            // Click-through rate
-  | 'views'          // Impressions/ad views
-  | 'ecpm'           // Effective Cost Per Mille (revenue per 1000 impressions)
-  | 'costs'          // Costs
-  | 'margin'         // Margin metrics
-  | 'roi';           // Return on investment
+// Canonical source: Affise API
+//   Validator:   src/Forms/Statistics/Clickhouse/Slice.php (NotBlank, multiple)
+//   Whitelist:   src/App/Provider/Statistics/Clickhouse/StatisticsEntity::getAllowedSliced($isAdmin)
+// Available to ALL roles (`getAllowedSliced(false)`); admin-only adds `advertiser` + `manager`.
+type SliceType =
+  // Time
+  | 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour'
+  // Offer / goal
+  | 'offer' | 'goal'
+  // Geo
+  | 'country' | 'city'
+  // OS
+  | 'os' | 'os_version'
+  // Device
+  | 'device' | 'device_model' | 'device_type'
+  // Browser
+  | 'browser' | 'browser_version'
+  // Landing pages
+  | 'landing' | 'prelanding'
+  // Network
+  | 'isp' | 'conn_type'
+  // Managers (NOT admin-only — both available to all roles per StatisticsEntity)
+  | 'advertiser_manager_id' | 'affiliate_manager_id'
+  // Partner-side
+  | 'affiliate' | 'affiliate_id'
+  // Other. Note: `trafficback_reason` is whitelisted but server rejects it
+  // standalone with 400 — typically requires `filter[is_trafficback]=1` or
+  // combination with `goal` slice.
+  | 'smart_id' | 'trafficback_reason'
+  // Sub IDs sub1..sub30 (whitelisted; filter is capped at sub1..sub8).
+  // Note: some tenants return 500 for sub6..sub30 in slice — server-side
+  // bug, not param validation. sub1..sub5 are reliable across tenants.
+  | SubSliceKey
+  // Admin-only (added on top of the above when `isAdmin === true`).
+  | 'advertiser' | 'manager';
+
+// Field options. Source: CustomStat::getGoApiFields() in Affise API.
+// Base set is GOAPI_FIELDS; additional fields are gated on account feature flags.
+type FieldType =
+  // Base (GOAPI_FIELDS, always available — 13 values)
+  | 'clicks' | 'hosts' | 'earnings' | 'income' | 'noincome' | 'payouts'
+  | 'conversions' | 'cr' | 'affiliate_epc' | 'ratio' | 'epc'
+  | 'trafficback' | 'afprice'
+  // Gated on config.allow_impressions
+  | 'ctr' | 'views' | 'ecpm'
+  // Gated on config.enable_ad_costs
+  | 'costs' | 'margin' | 'roi'
+  // Added by controller when CPC/CPM access is granted and `clicks` is in fields
+  // (or user role = Affiliate). Up to ~21 fields total in the response.
+  | 'clicks_earnings' | 'clicks_income';
 
 
 // Conversion types
@@ -88,11 +86,14 @@ interface CustomStatsParams {
   // Entity filters
   advertiser?: string[];                 // Advertiser IDs
   advertiser_manager_id?: string[];      // Advertiser manager IDs
-  affiliate?: string[];                  // Affiliate/Partner IDs (admin only)
+  partner?: string[];                    // Partner/Affiliate IDs (canonical Filter.php key)
+  affiliate?: string[];                  // Legacy alias for `partner` — auto-mapped in normalize
   affiliate_manager_id?: string[];       // Affiliate manager IDs
-  offer?: number[];                     // Offer IDs
-  smart_id?: string[];                  // SmartLink category IDs
+  supplier?: string[];                   // Advertiser-side supplier IDs
+  offer?: number[];                     // Offer IDs (numeric only — validateOffer())
+  smart_id?: string[];                  // SmartLink category IDs (requires config.smartlink)
   manager?: string[];                   // Manager IDs
+  subaccount_id?: string[];             // Subaccount IDs (role/feature-gated)
 
   // Technical filters
   os?: string[];                        // Operating systems
@@ -104,15 +105,16 @@ interface CustomStatsParams {
   conn_type?: string[];                 // Connection types
   isp?: string[];                       // ISP names
 
-  // Campaign tracking filters
-  sub1?: string[];                      // Sub ID 1 values
-  sub2?: string[];                      // Sub ID 2 values
-  sub3?: string[];                      // Sub ID 3 values
-  sub4?: string[];                      // Sub ID 4 values
-  sub5?: string[];                      // Sub ID 5 values
-  sub6?: string[];                      // Sub ID 6 values
-  sub7?: string[];                      // Sub ID 7 values
-  sub8?: string[];                      // Sub ID 8 values
+  // Campaign tracking filters — Filter.php only supports sub1..sub8.
+  // sub9..sub30 are valid as slice/order but NOT as filter (known Filter.php limitation).
+  sub1?: string[];
+  sub2?: string[];
+  sub3?: string[];
+  sub4?: string[];
+  sub5?: string[];
+  sub6?: string[];
+  sub7?: string[];
+  sub8?: string[];
 
   // Page filters
   landing?: string[];                   // Landing page IDs
@@ -122,7 +124,10 @@ interface CustomStatsParams {
   currency?: string[];                  // Currency codes
   goal?: string[];                      // Goal names
   trafficback_reason?: string[];        // Traffic back reasons
+  payment_status?: string[];            // Payment status filter
   nonzero?: 0 | 1;                     // Non-zero conversions only
+  balance_type?: string;                // Requires isCPARevshareBalanceEnabled
+  shave?: 0 | 1;                       // Requires isOptimisationToolsEnabled
 
   // Tag filters (comma-separated strings)
   advertiser_tag?: string;              // Advertiser tags
@@ -136,7 +141,7 @@ interface CustomStatsParams {
   order?: string[];                     // Fields to sort by. Available: hour, month, quarter, year, day, currency, offer, country, city, os, os_version, device, device_model, browser, goal, sub1, sub2, sub3, sub4, sub5, confirmed_earning, raw, uniq, total_count, total_revenue, total_null, pending_count, pending_revenue, declined_count, declined_revenue, hold_count, hold_revenue, confirmed_count, confirmed_revenue. Admin only: advertiser, affiliate, manager
 
   // === LOCALIZATION & TIMEZONE ===
-  locale?: 'en' | 'ru' | 'es';         // Response language
+  locale?: 'en' | 'ru' | 'es' | 'pt' | 'cn';  // Response language (Affise: ru/en/es/pt/cn)
   timezone?: string;                    // Timezone (e.g., "Europe/Moscow", "UTC")
 }
 
@@ -182,6 +187,93 @@ export async function getAffiseCustomStats(
     };
   }
 
+  // Slice `trafficback_reason` is a special-case dimension that is only
+  // compatible with the `trafficback` metric (conversion and traffic fields
+  // are server-disabled per field-validator `createConversionRule` /
+  // `createTrafficRule`). Without `fields: ['trafficback']`, Affise returns
+  // a confusing 400 "bad request: rule trafficback_reason only work ...".
+  // Catch this before the HTTP call with a precise error.
+  if (params.slice.includes('trafficback_reason')) {
+    const fields = params.fields ?? [];
+    if (!fields.includes('trafficback') || fields.some(f => f !== 'trafficback')) {
+      return {
+        status: 'error',
+        message:
+          `slice 'trafficback_reason' is only compatible with fields=['trafficback']. ` +
+          `Got fields=${JSON.stringify(fields)}. ` +
+          `Remove other fields, or drop 'trafficback_reason' from slice to combine with conversion/traffic metrics.`,
+        timestamp: getCurrentTimestamp(),
+      };
+    }
+  }
+
+  // Auto-resolve non-numeric partner clientIds → numeric affiliate_ids.
+  // Affise stats filter[partner] only accepts numeric IDs. When the caller
+  // passes a tracking name like "aff_crix", we hit /3.0/admin/partners?search=
+  // and substitute. Pure-numeric values are passed through untouched (no HTTP).
+  const partnerValues = (params as any).partner;
+  if (Array.isArray(partnerValues) && partnerValues.some((v: any) => !/^\d+$/.test(String(v)))) {
+    const { resolved, errors } = await resolvePartnerClientIds(config, partnerValues);
+    if (errors.length) {
+      return {
+        status: 'error',
+        message: errors.join(' | '),
+        timestamp: getCurrentTimestamp(),
+      };
+    }
+    (params as any).partner = resolved;
+  }
+
+  // Safety net for ID-typed filters.
+  // Affise filter ID types:
+  //   - partner / affiliate: numeric affiliate_id (sequential int) — already
+  //     auto-resolved above
+  //   - offer / offer_id: numeric (sequential int)
+  //   - advertiser / supplier: 24-char MongoID hex string (NOT numeric)
+  //
+  // Validate shape per type, return a clear error instead of letting Affise
+  // 400 with a cryptic "failed to decode query" message.
+  const NUMERIC_FILTERS: Record<string, string> = {
+    offer: 'affise_list_offers / affise_search_offers',
+  };
+  for (const [field, lookupTool] of Object.entries(NUMERIC_FILTERS)) {
+    const values = (params as any)[field];
+    if (Array.isArray(values) && values.length > 0) {
+      const bad = values.filter((v: any) => !/^\d+$/.test(String(v)));
+      if (bad.length) {
+        return {
+          status: 'error',
+          message:
+            `Affise stats filter[${field}] accepts numeric IDs only. ` +
+            `Got non-numeric: ${bad.join(', ')}. ` +
+            `Look up the numeric ID with ${lookupTool} first.`,
+          timestamp: getCurrentTimestamp()
+        };
+      }
+    }
+  }
+
+  // Auto-resolve non-MongoID advertiser/supplier names → MongoID strings.
+  // Affise stats filter[advertiser|supplier] expects a 24-char hex MongoID
+  // (e.g. "5dc2ea20b5d12930268b8a2a"). If caller passes a name or tag, hit
+  // GET /3.0/admin/advertisers?name=... and substitute the MongoID.
+  // Pure-MongoID values pass through untouched.
+  for (const field of ['advertiser', 'supplier']) {
+    const values = (params as any)[field];
+    if (!Array.isArray(values) || values.length === 0) continue;
+    const needsResolve = values.some((v: any) => !/^[a-f0-9]{24}$/i.test(String(v)));
+    if (!needsResolve) continue;
+    const { resolved, errors } = await resolveAdvertiserNames(config, values);
+    if (errors.length) {
+      return {
+        status: 'error',
+        message: errors.join(' | '),
+        timestamp: getCurrentTimestamp(),
+      };
+    }
+    (params as any)[field] = resolved;
+  }
+
   try {
     const url = `${baseUrl}/3.0/stats/custom`;
     const queryParams = new URLSearchParams();
@@ -191,9 +283,18 @@ export async function getAffiseCustomStats(
     queryParams.append('filter[date_from]', params.date_from);
     queryParams.append('filter[date_to]', params.date_to);
 
-    // Add fields
+    // Normalize fields[] — friendly aliases (`cost`, `charge`, `spend`, `revenue`,
+    // `earning`, `impressions`) → canonical Affise names. Same mapping used by NL
+    // parser; centralized in src/utils/stats-normalizer.ts so direct callers of
+    // affise_stats_raw benefit too. `costs` (admin-only field) is intentionally
+    // NOT remapped — direct callers may legitimately request it.
     if (params.fields?.length) {
-      params.fields.forEach(f => queryParams.append('fields[]', f));
+      const { fields: normalizedFields, aliased } = normalizeStatsFields(params.fields);
+      normalizedFields.forEach(f => queryParams.append('fields[]', f));
+      if (aliased.length && process.env.NODE_ENV === 'development') {
+        const summary = aliased.map(([from, to]) => `${from}→${to}`).join(', ');
+        console.warn(`[stats] aliased fields: ${summary}`);
+      }
     }
 
     // Add conversion types
@@ -209,18 +310,37 @@ export async function getAffiseCustomStats(
       queryParams.append('orderType', params.orderType);
     }
 
-    // Ensure order is an array before using forEach
+    // Normalize order[] — friendly metric names (`earnings`, `conversions`, `cr`)
+    // → canonical Affise sort keys (`confirmed_earning`, `total_count`, dropped).
+    // Without this, presets and direct callers that use field-style names in
+    // order[] get 403 "insufficient permissions" from Affise. See
+    // src/utils/stats-normalizer.ts for the full mapping.
     if (params.order && Array.isArray(params.order) && params.order.length > 0) {
-      params.order.forEach(o => queryParams.append('order[]', o));
+      const { order: normalizedOrder, dropped } = normalizeStatsOrder(params.order);
+      normalizedOrder.forEach(o => queryParams.append('order[]', o));
+      if (dropped.length && process.env.NODE_ENV === 'development') {
+        console.warn(`[stats] dropped unsortable order entries: ${dropped.join(', ')}`);
+      }
     }
 
-    // Add all filter parameters
+    // Filter array-typed params per Filter.php form fields.
+    // NOTE: sub1..sub8 only — Filter.php does not accept sub9..sub30 as filters
+    // (those values are valid for slice/order but not filter).
     const arrayFilters = [
-      'country', 'city', 'advertiser', 'advertiser_manager_id', 'affiliate', 
-      'affiliate_manager_id', 'offer', 'smart_id', 'os', 'os_version', 'browser', 
-      'browser_version', 'device', 'device_model', 'conn_type', 'isp',
+      // Geo & basics
+      'country', 'city', 'currency', 'goal',
+      // Entity
+      'offer', 'smart_id',
+      // Tech (only ones Filter.php accepts)
+      'os', 'device',
+      // Sides — `partner` is the canonical key; legacy `affiliate` aliased in normalize
+      'supplier', 'advertiser', 'partner',
+      // Managers
+      'manager', 'advertiser_manager_id', 'affiliate_manager_id',
+      // Sub IDs (Filter.php cap: sub1..sub8)
       'sub1', 'sub2', 'sub3', 'sub4', 'sub5', 'sub6', 'sub7', 'sub8',
-      'landing', 'prelanding', 'currency', 'manager', 'goal', 'trafficback_reason'
+      // Optional/conditional
+      'payment_status', 'subaccount_id',
     ];
 
     arrayFilters.forEach(filter => {
@@ -249,6 +369,14 @@ export async function getAffiseCustomStats(
       queryParams.append('filter[offer_tag]', params.offer_tag);
     }
 
+    if (params.balance_type) {
+      queryParams.append('filter[balance_type]', params.balance_type);
+    }
+
+    if (params.shave !== undefined) {
+      queryParams.append('filter[shave]', params.shave.toString());
+    }
+
     // Add localization options
     if (params.locale) {
       queryParams.append('locale', params.locale);
@@ -262,7 +390,7 @@ export async function getAffiseCustomStats(
 
     // Only log in development
     if (process.env.NODE_ENV === 'development') {
-      console.info('Custom Stats API URL:', fullUrl);
+      console.error('Custom Stats API URL:', fullUrl);
     }
 
     const response = await axios.get(fullUrl, {
@@ -316,7 +444,8 @@ export async function getAffiseCustomStats(
     if (params.os?.length) filtersApplied.push(`OS: ${params.os.join(', ')}`);
     if (params.device?.length) filtersApplied.push(`devices: ${params.device.join(', ')}`);
     if (params.browser?.length) filtersApplied.push(`browsers: ${params.browser.join(', ')}`);
-    if (params.affiliate?.length) filtersApplied.push(`affiliates: ${params.affiliate.length} items`);
+    if (params.partner?.length) filtersApplied.push(`partners: ${params.partner.length} items`);
+    if (params.affiliate?.length) filtersApplied.push(`affiliates: ${params.affiliate.length} items`);  // legacy
     if (params.sub1?.length) filtersApplied.push(`sub1: ${params.sub1.length} items`);
     if (params.nonzero) filtersApplied.push('non-zero conversions only');
     if (params.timezone) filtersApplied.push(`timezone: ${params.timezone}`);
@@ -324,10 +453,15 @@ export async function getAffiseCustomStats(
     const totalRecords = Array.isArray(data.stats) ? data.stats.length : 0;
     const pagination = data.pagination || {};
 
+    // Compact tabular form: flatten + drop empty cols, report drops.
+    // Affise stats responses use { stats: [...] }, which compactTabular
+    // detects and reshapes. Non-stats payloads pass through unchanged.
+    const compactedData = compactTabular(data);
+
     return {
       status: 'ok',
       message: `Retrieved ${totalRecords} custom statistics records`,
-      data: data,
+      data: compactedData,
       metadata: {
         total_records: totalRecords,
         date_range: `${params.date_from} to ${params.date_to}`,
@@ -344,7 +478,7 @@ export async function getAffiseCustomStats(
     };
 
   } catch (error: any) {
-    let errorMessage = 'Unknown error';
+    let errorMessage: string;
 
     if (error.code === 'ECONNREFUSED') {
       errorMessage = 'Unable to connect to Affise custom stats server';
@@ -383,6 +517,136 @@ export async function getAffiseCustomStats(
       timestamp: getCurrentTimestamp()
     };
   }
+}
+
+/**
+ * Resolve a list of partner clientIds (tracking names) to numeric affiliate_ids
+ * by querying GET /3.0/admin/partners?search=<name>.
+ *
+ * - Pure-numeric values pass through untouched (no HTTP).
+ * - Exactly-one match → use that id.
+ * - Zero matches → error "partner not found: <name>".
+ * - Multiple matches → error listing candidate ids so the caller can pick.
+ *
+ * Used by getAffiseCustomStats to make NL queries like "for partner aff_crix"
+ * work transparently — caller doesn't need to do a separate lookup step.
+ */
+async function resolvePartnerClientIds(
+  config: { baseUrl: string; apiKey: string },
+  values: string[],
+): Promise<{ resolved: string[]; errors: string[] }> {
+  const resolved: string[] = [];
+  const errors: string[] = [];
+
+  for (const raw of values) {
+    const v = String(raw);
+    if (/^\d+$/.test(v)) {
+      resolved.push(v);
+      continue;
+    }
+    try {
+      const url = `${config.baseUrl}/3.0/admin/partners?search=${encodeURIComponent(v)}&limit=10`;
+      const resp = await axios.get(url, {
+        headers: { 'api-key': config.apiKey, 'Accept': 'application/json' },
+        timeout: 10000,
+        validateStatus: s => s < 500,
+      });
+      if (resp.status === 401 || resp.status === 403) {
+        errors.push(`Cannot resolve partner "${v}": admin API key required for /3.0/admin/partners (got HTTP ${resp.status}).`);
+        continue;
+      }
+      if (resp.status >= 400) {
+        errors.push(`Partner lookup failed (HTTP ${resp.status}) for "${v}".`);
+        continue;
+      }
+      const partners: any[] = Array.isArray(resp.data?.partners) ? resp.data.partners : [];
+      if (partners.length === 0) {
+        errors.push(`Partner not found: "${v}". Check the clientId / tracking name spelling.`);
+      } else if (partners.length === 1) {
+        const id = partners[0]?.id;
+        if (id == null) {
+          errors.push(`Partner lookup for "${v}" returned a record without an id.`);
+        } else {
+          resolved.push(String(id));
+        }
+      } else {
+        const sample = partners.slice(0, 5).map((p: any) => {
+          const label = p.title || p.login || p.email || p.name || '(no label)';
+          return `id=${p.id} (${label})`;
+        }).join(', ');
+        errors.push(`Ambiguous partner "${v}": ${partners.length} matches — ${sample}. Pass the numeric id directly.`);
+      }
+    } catch (e: any) {
+      errors.push(`Partner lookup error for "${v}": ${e?.message ?? String(e)}`);
+    }
+  }
+
+  return { resolved, errors };
+}
+
+/**
+ * Resolve a list of advertiser names / tags to 24-char hex MongoIDs by
+ * querying GET /3.0/admin/advertisers?name=<name>.
+ *
+ * - Valid MongoIDs (24-char hex) pass through untouched (no HTTP).
+ * - Exactly-one match → use that MongoID.
+ * - Zero matches → error.
+ * - Multiple matches → error listing candidate IDs so the caller can pick.
+ *
+ * Used by getAffiseCustomStats so NL/raw queries can pass advertiser names
+ * transparently — caller doesn't need a separate lookup step.
+ */
+async function resolveAdvertiserNames(
+  config: { baseUrl: string; apiKey: string },
+  values: string[],
+): Promise<{ resolved: string[]; errors: string[] }> {
+  const resolved: string[] = [];
+  const errors: string[] = [];
+
+  for (const raw of values) {
+    const v = String(raw);
+    if (/^[a-f0-9]{24}$/i.test(v)) {
+      resolved.push(v);
+      continue;
+    }
+    try {
+      const url = `${config.baseUrl}/3.0/admin/advertisers?name=${encodeURIComponent(v)}&limit=10`;
+      const resp = await axios.get(url, {
+        headers: { 'api-key': config.apiKey, 'Accept': 'application/json' },
+        timeout: 10000,
+        validateStatus: s => s < 500,
+      });
+      if (resp.status === 401 || resp.status === 403) {
+        errors.push(`Cannot resolve advertiser "${v}": admin API key required for /3.0/admin/advertisers (got HTTP ${resp.status}).`);
+        continue;
+      }
+      if (resp.status >= 400) {
+        errors.push(`Advertiser lookup failed (HTTP ${resp.status}) for "${v}".`);
+        continue;
+      }
+      const advertisers: any[] = Array.isArray(resp.data?.advertisers) ? resp.data.advertisers : [];
+      if (advertisers.length === 0) {
+        errors.push(`Advertiser not found: "${v}". Check the name spelling or pass the 24-char MongoID directly.`);
+      } else if (advertisers.length === 1) {
+        const id = advertisers[0]?.id;
+        if (id == null) {
+          errors.push(`Advertiser lookup for "${v}" returned a record without an id.`);
+        } else {
+          resolved.push(String(id));
+        }
+      } else {
+        const sample = advertisers.slice(0, 5).map((a: any) => {
+          const label = a.title || a.name || a.email || '(no label)';
+          return `id=${a.id} (${label})`;
+        }).join(', ');
+        errors.push(`Ambiguous advertiser "${v}": ${advertisers.length} matches — ${sample}. Pass the MongoID directly.`);
+      }
+    } catch (e: any) {
+      errors.push(`Advertiser lookup error for "${v}": ${e?.message ?? String(e)}`);
+    }
+  }
+
+  return { resolved, errors };
 }
 
 // Enhanced preset configurations with slice options

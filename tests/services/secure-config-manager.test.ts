@@ -112,7 +112,7 @@ describe('SecureConfigManager', () => {
     });
 
         // it('should handle encryption errors gracefully', async () => {
-    //   jest.spyOn(crypto, 'createCipheriv').mockImplementation(() => {
+    //   vi.spyOn(crypto, 'createCipheriv').mockImplementation(() => {
     //     throw new Error('Encryption error');
     //   });
 
@@ -120,7 +120,7 @@ describe('SecureConfigManager', () => {
     //   const config = await manager.loadConfig();
     //   expect(config).toBeNull();
 
-    //   jest.unmock('crypto');
+    //   vi.unmock('crypto');
     // });
   });
 

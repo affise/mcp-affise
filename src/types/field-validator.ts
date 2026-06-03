@@ -45,9 +45,12 @@ const createConversionRule = (additionalRequires: readonly string[] = []): Field
 const createTrafficRule = (): FieldRule => 
   createRule(ALL_COMPATIBLE_SLICES, ['trafficback_reason', ...SLICES.subs30]);
 
-// Cost fields disabled by many slices
+// Cost fields disabled by many slices.
+// Manager slices use canonical names from Affise API (affiliate_manager_id,
+// not affiliate_manager — that singular alias does not exist server-side).
 const COSTS_DISABLED_BY: readonly string[] = [
-  ...SLICES.geo, ...SLICES.technical, 'advertiser_id', 'affiliate_manager', 'account_manager', 
+  ...SLICES.geo, ...SLICES.technical, 'advertiser_id',
+  'affiliate_manager_id', 'advertiser_manager_id', 'manager',
   'trafficback_reason', 'goal', 'smart_id', ...SLICES.subs, ...SLICES.subs30
 ];
 
@@ -59,8 +62,6 @@ const FIELD_RULES: Record<string, FieldRule> = {
   // Additional basic fields
   week: createRule(),
   affiliate_email: createRule(),
-  affiliate_manager: createRule(),
-  account_manager: createRule(),
   browser_version: createRule(),
   currency: createRule(),
   
@@ -218,7 +219,7 @@ export function getSuggestedFields(slices: readonly string[], fields: readonly s
   const compatibleSlices: string[] = [];
   const compatibleFields: string[] = [];
   
-  for (const [field, rule] of Object.entries(FIELD_RULES)) {
+  for (const field of Object.keys(FIELD_RULES)) {
     const testFields = [...currentFields, field];
     if (isFieldActive(field, testFields) && !isFieldDisabled(field, testFields)) {
       if (ALL_SLICES.includes(field) || ['currency', 'goal', 'smart_id'].includes(field)) {

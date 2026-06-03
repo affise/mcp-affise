@@ -125,7 +125,7 @@ export async function getOfferCategories(
     };
 
   } catch (error: any) {
-    let errorMessage = 'Unknown error';
+    let errorMessage: string;
 
     if (error.code === 'ECONNREFUSED') {
       errorMessage = 'Unable to connect to Affise server';

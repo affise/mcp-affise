@@ -36,7 +36,7 @@ export async function createAffiseStatusTool(config: { baseUrl: string; apiKey: 
     };
 
   } catch (error: any) {
-    let errorMessage = 'Unknown error';
+    let errorMessage: string;
     let statusCode: number | undefined;
 
     if (error.code === 'ECONNREFUSED') {

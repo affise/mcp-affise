@@ -1,5 +1,5 @@
 import { validateFieldCombination, autoFixFieldCombination, normalizeFieldNames } from './field-validator.js';
-import { getDateRange } from '../shared/date-utils.js';
+import { METRIC_TO_ORDER_FIELD } from '../utils/stats-normalizer.js';
 
 // Simple query interpretation
 export interface SimpleQueryInfo {
@@ -13,6 +13,10 @@ export interface SimpleQueryInfo {
   dimensions: string[];
   keywords: string[];
   suggestions: string[];
+  // "top N" → limit; order_by carries the metric the user wants ranked (descending).
+  // Populated by extractTopN(); consumed by toStatsParams().
+  limit?: number;
+  order_by?: string;
 }
 
 /**
@@ -38,7 +42,10 @@ export function parseQuery(query: string): SimpleQueryInfo {
   
   // Dimension patterns
   const dimensions = extractDimensions(q);
-  
+
+  // "top N <dim> by <metric>" → limit + order_by
+  const top = extractTopN(q);
+
   // Extract remaining keywords
   const keywords = extractKeywords(q);
   
@@ -62,8 +69,28 @@ export function parseQuery(query: string): SimpleQueryInfo {
     metrics,
     dimensions,
     keywords,
-    suggestions
+    suggestions,
+    limit: top?.limit,
+    order_by: top?.order_by,
   };
+}
+
+// "top 10 offers by charge" → { limit: 10, order_by: 'costs' }
+// "top 25 affiliates" → { limit: 25 }   (no order_by — caller picks default)
+// order_by is canonicalized (charge → costs, revenue → income) so it matches
+// what Affise expects in `fields[]` / `order[]`.
+function extractTopN(query: string): { limit?: number; order_by?: string } | undefined {
+  const m = query.match(/\btop\s+(\d+)\b(?:\s+[a-z_]+s?)?(?:\s+by\s+([a-z_]+))?/i);
+  if (!m) return undefined;
+  const limit = Number(m[1]);
+  if (!Number.isFinite(limit) || limit <= 0) return undefined;
+  const rawMetric = m[2]?.toLowerCase();
+  if (!rawMetric) return { limit };
+  // Reuse metric-name canonicalization. extractMetrics returns the canonical
+  // form for `charge` → `costs`, `revenue` → `income`, etc. — we run it on
+  // the bare metric word so order_by aligns with the fields we'd request.
+  const canonical = extractMetrics(rawMetric);
+  return { limit, order_by: canonical[0] ?? rawMetric };
 }
 
 // Extract countries
@@ -126,6 +153,18 @@ function extractMetrics(query: string): string[] {
     'revenue': 'income',
     'earnings': 'earnings',        // FIXED: Keep as 'earnings', not 'income'
     'earning': 'earnings',         // FIXED: Add singular form mapping
+    // "cost" / "charge" / "spend" — client slang for the revenue flowing in.
+    // The Affise field whitelist available to most tenants is:
+    //   clicks, hosts, earnings, income, noincome, payouts, conversions, cr,
+    //   affiliate_epc, ratio, epc, trafficback, (impressions extras: ctr, views, ecpm).
+    // `costs` is an admin-only extra — most clients won't have it. Map all
+    // cost-synonyms to `income` (universally available, same number from the
+    // partner's POV). For the admin `costs` field, use affise_stats_raw with
+    // explicit fields=['costs'].
+    'charge': 'income',
+    'costs': 'income',
+    'cost': 'income',
+    'spend': 'income',
     'conversions': 'conversions',  // FIXED: Keep as 'conversions', not 'conversions_confirmed'
     'clicks': 'clicks',
     'conversion rate': 'cr',
@@ -177,6 +216,7 @@ function extractDimensions(query: string): string[] {
     'by offer': 'offer',
     'by affiliate': 'affiliate',
     'by device': 'device',
+    'by goal': 'goal',
     'by conversions goal': 'goal', // For conversion status
     'breakdown': 'day', // Default breakdown
     'by hour': 'hour',
@@ -243,7 +283,103 @@ function extractDimensions(query: string): string[] {
       found.push('day', 'country', 'offer');
     }
   }
-  
+
+  // Multi-dimensional "by X and Y", "by X, Y, Z", "by X Y Z" — the simple
+  // dimensionMap above only catches the FIRST `by <single>`. Here we walk
+  // every `by …` group and collect each known token (incl. sub1..sub30).
+  // Stops at a clause boundary (time/filter/limit/order keyword or EOL).
+  const DIM_ALIAS: Record<string, string> = {
+    day: 'day', daily: 'day', hour: 'hour', hourly: 'hour',
+    month: 'month', monthly: 'month',
+    country: 'country', offer: 'offer', offers: 'offer',
+    affiliate: 'affiliate', affiliates: 'affiliate',
+    partner: 'affiliate', partners: 'affiliate',
+    publisher: 'affiliate', publishers: 'affiliate', pub: 'affiliate',
+    device: 'device', os: 'os', browser: 'browser',
+    advertiser: 'advertiser', advertisers: 'advertiser',
+    smartlink: 'smart_id', smart_id: 'smart_id',
+    goal: 'goal', goals: 'goal',
+  };
+  const STOP_WORDS = /\b(?:last|this|yesterday|today|next|past|for|with|filter|where|limit|order|top|in)\b/i;
+  const byGroupRegex = /\b(?:by|breakdown\s+by)\s+([a-z][a-z0-9_,\s/+]*?)(?=\s+(?:last|this|yesterday|today|next|past|for|with|filter|where|limit|order|top|in)\b|$)/gi;
+  let byMatch: RegExpExecArray | null;
+  while ((byMatch = byGroupRegex.exec(query)) !== null) {
+    const tail = byMatch[1].trim();
+    // Tokenize on , and / and + and "and"/"or" and whitespace
+    const tokens = tail
+      .replace(/\b(?:and|or)\b/gi, ',')
+      .split(/[\s,/+]+/)
+      .map(t => t.trim().toLowerCase())
+      .filter(t => t && !STOP_WORDS.test(t));
+    for (const tok of tokens) {
+      // Canonical alias?
+      const canon = DIM_ALIAS[tok];
+      if (canon) {
+        if (!found.includes(canon)) found.push(canon);
+        continue;
+      }
+      // sub1..sub30?
+      const subM = tok.match(/^sub(\d+)$/);
+      if (subM) {
+        const n = Number(subM[1]);
+        if (n >= 1 && n <= 30) {
+          const key = `sub${n}`;
+          if (!found.includes(key)) found.push(key);
+        }
+      }
+      // Unknown token — silently skip (don't pollute slice with junk)
+    }
+  }
+
+  // "dynamics" / "over time" / "trend" / "trends" — user is asking for a
+  // time series. Make sure `day` is in the slice (it's a no-op if already
+  // present via "by day" or "daily").
+  if (/\b(?:dynamics|over\s+time|trend|trends|timeline)\b/i.test(query)) {
+    if (!found.includes('day') && !found.includes('hour') && !found.includes('month')) {
+      // Unshift so day comes first in slice — Affise convention for time series
+      found.unshift('day');
+    }
+  }
+
+  // Sub-ID dimensions. Affise accepts sub1..sub30 as slice values (filter is
+  // capped at sub8 per Filter.php; slice/order have no cap).
+  //
+  // The marker prefix is REQUIRED so we don't catch bare `sub5` from
+  // key=value filter forms ("os=Unknown sub5=abc") — those are handled by
+  // extractFilters(), not here.
+  //
+  // Recognized forms:
+  //   "by subN"              | "by sub5"
+  //   "breakdown by subN"    | "breakdown by sub3"
+  //   "top N by subM"        | "top 10 by sub5"
+  //   "top N subM"           | "top 10 sub5"
+  const subDimRegex = /(?:\bby\s+|\bbreakdown\s+by\s+|\btop\s+\d+\s+(?:by\s+)?)sub(\d+)\b/gi;
+  let subMatch: RegExpExecArray | null;
+  let foundAnySubDim = false;
+  while ((subMatch = subDimRegex.exec(query)) !== null) {
+    const n = Number(subMatch[1]);
+    if (n >= 1 && n <= 30) {
+      const key = `sub${n}`;
+      if (!found.includes(key)) found.push(key);
+      foundAnySubDim = true;
+    }
+  }
+
+  // If at least one sub-dim was found via a marker, also pick up sibling
+  // sub-IDs joined by conjunctions ("breakdown by sub1 and sub5"). Negative
+  // lookahead for `:` / `=` keeps us from catching filter-form values.
+  if (foundAnySubDim) {
+    const conjRegex = /(?:\band\s+|\bor\s+|,\s*)sub(\d+)\b(?!\s*[:=])/gi;
+    let conjMatch: RegExpExecArray | null;
+    while ((conjMatch = conjRegex.exec(query)) !== null) {
+      const n = Number(conjMatch[1]);
+      if (n >= 1 && n <= 30) {
+        const key = `sub${n}`;
+        if (!found.includes(key)) found.push(key);
+      }
+    }
+  }
+
   return [...new Set(found)];
 }
 
@@ -260,6 +396,57 @@ function extractKeywords(query: string): string[] {
     .split(/\s+/)
     .filter(word => word.length > 2 && !excludeWords.includes(word))
     .filter((word, index, arr) => arr.indexOf(word) === index); // Remove duplicates
+}
+
+// Extract structured filter conditions from NL query.
+// Supports both `key=value` / `key: value` forms and a few prose forms.
+// Receives the ORIGINAL (mixed-case) query so filter values keep their case.
+export function extractFilters(query: string): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+
+  // 1. key=value / key: value
+  //    affiliate=193 (legacy → partner) | partner=193 | os=Unknown | sub1..sub8=abc
+  const kvRegex = /\b(affiliate|partner|advertiser|supplier|offer|country|city|os|device|goal|smart_id|sub[1-8])\s*[:=]\s*([^\s,;]+(?:\s*,\s*[^\s,;]+)*)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = kvRegex.exec(query)) !== null) {
+    let key = m[1].toLowerCase();
+    if (key === 'affiliate') key = 'partner'; // Filter.php uses `partner`
+    const values = m[2].split(',').map(v => v.trim()).filter(Boolean);
+    if (values.length) out[key] = [...(out[key] ?? []), ...values];
+  }
+
+  // 2. "for affiliate 193" / "partner id 193" prose → partner
+  const affMatch = query.match(/\b(?:affiliate|partner)(?:\s+id)?\s+(\d+(?:\s*,\s*\d+)*)/i);
+  if (affMatch && !out.partner) {
+    out.partner = affMatch[1].split(',').map(s => s.trim());
+  }
+
+  // 2b. Identifier-like partner names: "for affiliate aff_crix", "partner client_abc",
+  // "partner abc-123". Requires the value to contain at least one underscore,
+  // hyphen, or digit — pure English words ("offers", "manager", "names") are
+  // skipped to avoid false positives from queries like "show partner offers".
+  // ALSO exclude sub<N> tokens — those are slice dimensions, not partner names
+  // (e.g. "by affiliate sub1 os" must not capture "sub1" as a partner clientId).
+  // The captured value is a tracking-name / clientId; getAffiseCustomStats
+  // auto-resolves it to the numeric affiliate_id via /3.0/admin/partners?search=.
+  if (!out.partner) {
+    const nameMatch = query.match(/\b(?:for\s+)?(?:affiliate|partner)(?:\s+id)?\s+([a-zA-Z][a-zA-Z0-9_-]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9_-]*)*)/i);
+    if (nameMatch) {
+      const values = nameMatch[1]
+        .split(',')
+        .map(s => s.trim())
+        .filter(v => /[_\-\d]/.test(v) && !/^sub\d+$/i.test(v));
+      if (values.length) out.partner = values;
+    }
+  }
+
+  // 3. "offer 12345" prose
+  const offMatch = query.match(/\boffer(?:\s+id)?\s+(\d+(?:\s*,\s*\d+)*)/i);
+  if (offMatch && !out.offer) {
+    out.offer = offMatch[1].split(',').map(s => s.trim());
+  }
+
+  return out;
 }
 
 // Generate suggestions for low confidence queries
@@ -307,7 +494,10 @@ export function toSearchParams(parsed: SimpleQueryInfo): any {
 }
 
 /**
- * Convert parsed query to stats parameters with field validation
+ * Convert parsed query to stats parameters with field validation.
+ * Note: `order[]` canonicalization uses METRIC_TO_ORDER_FIELD from
+ * src/utils/stats-normalizer.ts (single source of truth shared with
+ * direct `affise_stats_raw` callers and `createCustomStatsPresets()`).
  */
 export function toStatsParams(parsed: SimpleQueryInfo): any {
   const params: any = {};
@@ -320,9 +510,18 @@ export function toStatsParams(parsed: SimpleQueryInfo): any {
   }
   
   // Set metrics and normalize field names
-  let fields: string[] = parsed.metrics.length > 0 
-    ? parsed.metrics 
-    : ['clicks', 'conversions', 'income', 'cr']; // Default
+  // Slice-aware defaults: `goal` and `trafficback_reason` are MUTUALLY
+  // EXCLUSIVE with `clicks` per field-validator rules. If we kept the
+  // broad default (`clicks` included), auto-fix would drop the slice.
+  // Use conversion-side metrics that ARE compatible with both slices.
+  let fields: string[];
+  if (parsed.metrics.length > 0) {
+    fields = parsed.metrics;
+  } else if (params.slice.includes('goal') || params.slice.includes('trafficback_reason')) {
+    fields = ['conversions', 'income', 'cr'];
+  } else {
+    fields = ['clicks', 'conversions', 'income', 'cr']; // Default
+  }
   
   // Normalize field names (revenue -> income, conversions -> conversions_confirmed, etc.)
   fields = normalizeFieldNames(fields);
@@ -351,17 +550,44 @@ export function toStatsParams(parsed: SimpleQueryInfo): any {
   if (parsed.countries.length > 0) {
     params.country = parsed.countries;
   }
-  
+
   if (parsed.devices.length > 0) {
     params.device = parsed.devices;
   }
-  
+
+  // Extract structured filters (affiliate=193, os=Unknown, sub1..sub8=*) from
+  // the ORIGINAL query so values like "Unknown" keep their casing.
+  const extracted = extractFilters(parsed.original);
+  for (const [k, v] of Object.entries(extracted)) {
+    if (v && v.length && !params[k]) params[k] = v;
+  }
+
   // Set time period
   if (parsed.time_period) {
     params.period = parsed.time_period;
   } else {
     params.period = 'last7days'; // Default
   }
-  
+
+  // "top N" → propagate limit; "top N by <metric>" → order descending by
+  // that metric. Affise `order[]` vocabulary differs from `fields[]`, so we
+  // canonicalize via METRIC_TO_ORDER_FIELD; unmappable metrics (epc, cr —
+  // computed) drop `order[]` silently and keep just limit + field.
+  // Direction goes in `orderType` — DO NOT prefix order values with "-".
+  if (parsed.limit && parsed.limit > 0) {
+    params.limit = parsed.limit;
+  }
+  if (parsed.order_by) {
+    const orderField = METRIC_TO_ORDER_FIELD[parsed.order_by];
+    if (orderField) {
+      params.order = [orderField];
+      params.orderType = 'desc';
+    }
+    // Always keep the requested metric in fields — user wants to see that column.
+    if (Array.isArray(params.fields) && !params.fields.includes(parsed.order_by)) {
+      params.fields = [...params.fields, parsed.order_by];
+    }
+  }
+
   return params;
 }
