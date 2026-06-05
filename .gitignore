@@ -11,6 +11,9 @@ docs/
 .env.local
 .env.*.local
 
+# Claude Code — personal/local config (shared config lives in settings.json)
+.claude/settings.local.json
+
 # Logs
 *.log
 npm-debug.log*
