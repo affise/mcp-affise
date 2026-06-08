@@ -9,7 +9,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 // Enhanced services
 import { CacheService } from '../services/cache-service.js';
 import { ErrorHandlerService } from '../services/error-handler-service.js';
-import { ValidationService } from '../services/validation-service.js';
+import { ValidationService, STATS_RAW_SLICES, STATS_RAW_FIELDS } from '../services/validation-service.js';
 
 // Import API functions - UPDATED TO USE UNIFIED SYSTEM
 import { createAffiseStatusTool } from '../tools/affise_status.js';
@@ -96,34 +96,8 @@ export const TOOLS = [
           type: 'array',
           items: {
             type: 'string',
-            enum: [
-              // Time
-              'year', 'quarter', 'month', 'week', 'day', 'hour',
-              // Entity
-              'offer', 'goal',
-              // Geo
-              'country', 'city',
-              // Tech
-              'os', 'os_version',
-              'device', 'device_model', 'device_type',
-              'browser', 'browser_version',
-              // Pages
-              'landing', 'prelanding',
-              // Network
-              'isp', 'conn_type',
-              // Managers (available to ALL roles per Affise API StatisticsEntity)
-              'advertiser_manager_id', 'affiliate_manager_id',
-              // Partner-side
-              'affiliate', 'affiliate_id',
-              // Other
-              'smart_id', 'trafficback_reason',
-              // Subs
-              'sub1','sub2','sub3','sub4','sub5','sub6','sub7','sub8','sub9','sub10',
-              'sub11','sub12','sub13','sub14','sub15','sub16','sub17','sub18','sub19','sub20',
-              'sub21','sub22','sub23','sub24','sub25','sub26','sub27','sub28','sub29','sub30',
-              // Admin-only (rejected with 403 for non-admin roles)
-              'advertiser', 'manager'
-            ]
+            // Single source of truth — see STATS_RAW_SLICES in validation-service.
+            enum: [...STATS_RAW_SLICES]
           },
           description: 'Grouping dimensions per Affise API StatisticsEntity::getAllowedSliced(). `advertiser` and `manager` are admin-only. Sub IDs sub1..sub30 valid as slice (filter is capped at sub1..sub8). Note: `trafficback_reason` is ONLY compatible with `fields: ["trafficback"]` — conversion/traffic metrics are disabled server-side when this slice is present. Combine with other slices like `country`/`offer` to get drill-down (slice=["trafficback_reason","country"], fields=["trafficback"]).'
         },
@@ -131,20 +105,11 @@ export const TOOLS = [
           type: 'array',
           items: {
             type: 'string',
-            enum: [
-              // Base GOAPI_FIELDS (13)
-              'clicks', 'hosts', 'earnings', 'income', 'noincome', 'payouts',
-              'conversions', 'cr', 'affiliate_epc', 'ratio', 'epc',
-              'trafficback', 'afprice',
-              // Impressions (config.allow_impressions)
-              'ctr', 'views', 'ecpm',
-              // Ad costs (config.enable_ad_costs)
-              'costs', 'margin', 'roi',
-              // CPC/CPM
-              'clicks_earnings', 'clicks_income'
-            ]
+            // Single source of truth — see STATS_RAW_FIELDS in validation-service.
+            // Matches Affise CustomStat::getGoApiFields() (what /3.0/stats/custom accepts).
+            enum: [...STATS_RAW_FIELDS]
           },
-          description: 'Metrics to include. Some fields are gated on account feature flags (impressions, ad costs, CPC/CPM).'
+          description: 'Metrics to include, matching Affise CustomStat::getGoApiFields() (what /3.0/stats/custom accepts). Base fields (always available): clicks, hosts, earnings, income, noincome, payouts, conversions, cr, affiliate_epc, ratio, epc, trafficback, afprice. Tenant-gated: `ctr`/`views`/`ecpm` require the impressions feature flag; `costs`/`margin`/`roi` require the ad-costs flag (admin-only). A gated field on a tenant without the flag is rejected/dropped server-side. Note: `clicks_earnings`/`clicks_income` belong to the legacy export endpoint and are NOT valid here.'
         },
         date_from: {
           type: 'string',

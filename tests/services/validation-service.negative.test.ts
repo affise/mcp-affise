@@ -3,7 +3,7 @@
  * regressions in the validation layer for affise_stats_raw inputs.
  */
 
-import { ValidationService } from '../../src/services/validation-service.js';
+import { ValidationService, STATS_RAW_FIELDS } from '../../src/services/validation-service.js';
 
 describe('ValidationService.validateRawStatsParams — negative cases', () => {
   let v: ValidationService;
@@ -60,6 +60,56 @@ describe('ValidationService.validateRawStatsParams — negative cases', () => {
       date_to: '2026-01-10',
     });
     expect(r.isValid).toBe(true);
+  });
+
+  // Regression: the runtime field allow-list must stay in sync with the schema
+  // enum advertised to clients. A stale hardcoded list previously rejected
+  // schema-valid fields (earnings, payouts, noincome), forcing clients into
+  // trial-and-error retries.
+  it('accepts every field advertised in STATS_RAW_FIELDS', () => {
+    for (const field of STATS_RAW_FIELDS) {
+      const r = v.validateRawStatsParams({
+        slice: ['os'],
+        fields: [field],
+        date_from: '2026-06-07',
+        date_to: '2026-06-07',
+      });
+      expect(r.isValid, `field "${field}" should be valid: ${r.errors.join(', ')}`).toBe(true);
+    }
+  });
+
+  it('accepts earnings + payouts + noincome together (real repro payload)', () => {
+    const r = v.validateRawStatsParams({
+      slice: ['os'],
+      fields: ['clicks', 'conversions', 'cr', 'earnings', 'payouts', 'income', 'noincome'],
+      date_from: '2026-06-07',
+      date_to: '2026-06-07',
+      partner: ['394'],
+    });
+    expect(r.isValid).toBe(true);
+  });
+
+  it('rejects an unknown field and lists valid values in the error', () => {
+    const r = v.validateRawStatsParams({
+      slice: ['os'],
+      fields: ['clicks', 'totally_fake_metric'],
+      date_from: '2026-06-07',
+      date_to: '2026-06-07',
+    });
+    expect(r.isValid).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/Invalid field values: totally_fake_metric/);
+    expect(r.errors.join(' ')).toMatch(/Valid values:.*earnings/);
+  });
+
+  it('rejects clicks_earnings/clicks_income (legacy export fields, not /3.0 input)', () => {
+    const r = v.validateRawStatsParams({
+      slice: ['os'],
+      fields: ['clicks', 'clicks_earnings'],
+      date_from: '2026-06-07',
+      date_to: '2026-06-07',
+    });
+    expect(r.isValid).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/Invalid field values: clicks_earnings/);
   });
 
   it('rejects limit > 500', () => {
