@@ -329,36 +329,80 @@ export class ErrorHandlerService {
    */
   private sanitizeArgs(args: any): any {
     if (!args || typeof args !== 'object') {
-      return args;
+      // Sanitize primitive string values (e.g. an array element) for embedded
+      // secrets, but preserve benign short/numeric values verbatim.
+      return typeof args === 'string' ? this.sanitizeArgValue(args) : args;
+    }
+
+    // Preserve arrays as arrays — spreading an array into {...} turns it into a
+    // numeric-keyed object, which corrupts the echoed args (e.g. ["os"] becomes
+    // {0:"os"}). Recurse element-wise instead.
+    if (Array.isArray(args)) {
+      return args.map((el) => this.sanitizeArgs(el));
     }
 
     const sanitized = { ...args };
-    
+
     // Remove sensitive fields
     const sensitiveFields = [
       'api_key', 'apiKey', 'token', 'password', 'secret', 'auth', 'authorization',
       'access_token', 'refresh_token', 'client_secret', 'private_key',
       'AFFISE_API_KEY', 'AFFISE_BASE_URL'
     ];
-    
+
     for (const field of sensitiveFields) {
       if (sanitized[field]) {
         sanitized[field] = '[REDACTED]';
       }
     }
 
-    // Recursively sanitize nested objects
+    // Recursively sanitize nested objects/arrays and string values
     for (const key in sanitized) {
-      if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+      if (sensitiveFields.includes(key)) continue; // already redacted
+      if (sanitized[key] !== null && typeof sanitized[key] === 'object') {
         sanitized[key] = this.sanitizeArgs(sanitized[key]);
-      }
-      // Sanitize string values that might contain sensitive info
-      if (typeof sanitized[key] === 'string') {
-        sanitized[key] = this.sanitizeErrorMessage(sanitized[key]);
+      } else if (typeof sanitized[key] === 'string') {
+        sanitized[key] = this.sanitizeArgValue(sanitized[key]);
       }
     }
 
     return sanitized;
+  }
+
+  /**
+   * Sanitize an individual argument *value* (not a free-text error message).
+   *
+   * Unlike sanitizeErrorMessage(), this only strips high-confidence secrets and
+   * PII embedded in the value. It deliberately omits the message-oriented rules
+   * that corrupt legitimate arg values: the `length < 5 → generic placeholder`
+   * fallback (which nuked "os", "cr", "hold") and the broad phone-number regex
+   * (which redacted numeric IDs like "394" and the year in "2026-06-07").
+   */
+  private sanitizeArgValue(value: string): string {
+    if (!value || typeof value !== 'string') {
+      return value;
+    }
+
+    const secretPatterns: RegExp[] = [
+      // API keys / bearer / token assignments
+      /api[_-]?key[=:\s]+[a-zA-Z0-9]{16,}/gi,
+      /bearer\s+[a-zA-Z0-9]{16,}/gi,
+      /token[=:\s]+[a-zA-Z0-9]{16,}/gi,
+      // URLs with embedded credentials
+      /https?:\/\/[^@\s]+:[^@\s]+@[^\s]+/gi,
+      // Database connection strings
+      /(?:mongodb|mysql|postgres|redis):\/\/[^\s]+/gi,
+      // Email addresses (PII)
+      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+      // Credit card numbers
+      /\b(?:\d[ -]*?){13,16}\b/g,
+    ];
+
+    let out = value;
+    for (const pattern of secretPatterns) {
+      out = out.replace(pattern, '[REDACTED]');
+    }
+    return out;
   }
 
   /**
