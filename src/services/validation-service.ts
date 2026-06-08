@@ -5,6 +5,53 @@
 import { getDateRange } from '../shared/date-utils.js';
 import { SecureInputValidator } from './secure-input-validator.js';
 
+/**
+ * Allowed `slice` (grouping) dimensions for /3.0/stats/custom.
+ * Mirrors Affise API StatisticsEntity::getAllowedSliced(). Admin-only values
+ * (advertiser, manager) are included; the server enforces role at request time.
+ * Exported so the tool schema and this validator share one list (no drift).
+ */
+export const STATS_RAW_SLICES: readonly string[] = [
+  // Time
+  'year', 'quarter', 'month', 'week', 'day', 'hour',
+  // Offer / goal / geo
+  'offer', 'goal', 'country', 'city',
+  // OS / device / browser
+  'os', 'os_version', 'device', 'device_model', 'device_type',
+  'browser', 'browser_version',
+  // Pages / network
+  'landing', 'prelanding', 'isp', 'conn_type',
+  // Managers (available to all roles, NOT admin-only)
+  'advertiser_manager_id', 'affiliate_manager_id',
+  // Partner-side / other
+  'affiliate', 'affiliate_id', 'smart_id', 'trafficback_reason',
+  // Sub IDs sub1..sub30 (all valid as slice/order, filter capped at sub8)
+  ...Array.from({ length: 30 }, (_, i) => `sub${i + 1}`),
+  // Admin-only (server returns 403 for non-admin roles)
+  'advertiser', 'manager',
+];
+
+/**
+ * Allowed `fields` (metrics) for /3.0/stats/custom request input.
+ * Mirrors Affise API CustomStat::getGoApiFields() — the exact set the endpoint
+ * validates against ("Request has invalid fields, available only: ..."):
+ *   • base GOAPI_FIELDS — always available;
+ *   • ctr/views/ecpm — gated by config.allow_impressions;
+ *   • costs/margin/roi — gated by config.enable_ad_costs (admin).
+ * Excludes clicks_earnings/clicks_income: those are legacy LT-endpoint RESPONSE
+ * columns, NOT accepted as request input — the endpoint 400s on them.
+ */
+export const STATS_RAW_FIELDS: readonly string[] = [
+  // Base — GOAPI_FIELDS
+  'clicks', 'hosts', 'earnings', 'income', 'noincome', 'payouts',
+  'conversions', 'cr', 'affiliate_epc', 'ratio', 'epc',
+  'trafficback', 'afprice',
+  // Gated by config.allow_impressions
+  'ctr', 'views', 'ecpm',
+  // Gated by config.enable_ad_costs (admin)
+  'costs', 'margin', 'roi',
+];
+
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
@@ -272,7 +319,7 @@ export class ValidationService {
         const sanitizedSlice = sliceResult.sanitizedValue as string[];
         const invalidSlices = sanitizedSlice.filter((s: string) => !this.isValidSlice(s));
         if (invalidSlices.length > 0) {
-          errors.push(`Invalid slice values: ${invalidSlices.join(', ')}`);
+          errors.push(`Invalid slice values: ${invalidSlices.join(', ')}. Valid values: ${STATS_RAW_SLICES.join(', ')}`);
         } else {
           sanitizedParams.slice = sanitizedSlice;
         }
@@ -297,7 +344,7 @@ export class ValidationService {
         const sanitizedFields = fieldsResult.sanitizedValue as string[];
         const invalidFields = sanitizedFields.filter((f: string) => !this.isValidField(f));
         if (invalidFields.length > 0) {
-          errors.push(`Invalid field values: ${invalidFields.join(', ')}`);
+          errors.push(`Invalid field values: ${invalidFields.join(', ')}. Valid values: ${STATS_RAW_FIELDS.join(', ')}`);
         } else {
           sanitizedParams.fields = sanitizedFields;
         }
@@ -549,44 +596,20 @@ export class ValidationService {
    * (non-admin user perspective). `advertiser` is admin-only and excluded.
    */
   private isValidSlice(slice: string): boolean {
-    // Source: Affise API StatisticsEntity::getAllowedSliced($isAdmin).
-    // Available to ALL roles + admin-only (advertiser, manager) included for
-    // type completeness (server enforces role at request time).
-    const validSlices = [
-      // Time
-      'year', 'quarter', 'month', 'week', 'day', 'hour',
-      // Offer / goal / geo
-      'offer', 'goal', 'country', 'city',
-      // OS / device / browser
-      'os', 'os_version', 'device', 'device_model', 'device_type',
-      'browser', 'browser_version',
-      // Pages / network
-      'landing', 'prelanding', 'isp', 'conn_type',
-      // Managers (available to all roles, NOT admin-only)
-      'advertiser_manager_id', 'affiliate_manager_id',
-      // Partner-side / other
-      'affiliate', 'affiliate_id', 'smart_id', 'trafficback_reason',
-      // Sub IDs sub1..sub30 (all valid as slice/order, filter capped at sub8)
-      ...Array.from({ length: 30 }, (_, i) => `sub${i + 1}`),
-      // Admin-only (server returns 403 for non-admin roles)
-      'advertiser', 'manager',
-    ];
-
-    return validSlices.includes(slice);
+    // Single source of truth — see STATS_RAW_SLICES (module top).
+    return STATS_RAW_SLICES.includes(slice);
   }
 
   /**
-   * Validate field values
+   * Validate field values.
+   *
+   * Single source of truth — see STATS_RAW_FIELDS (module top), which mirrors
+   * Affise CustomStat::getGoApiFields(). A previous stale hardcoded list here
+   * rejected schema-valid fields (earnings, payouts, noincome) while permitting
+   * internal names absent from the API, forcing clients into trial-and-error.
    */
   private isValidField(field: string): boolean {
-    const validFields = [
-      'clicks', 'conversions', 'income', 'cr', 'epc', 'cpc',
-      'raw', 'uniq', 'confirmed_count', 'confirmed_earning',
-      'pending_count', 'pending_earning', 'declined_count', 'declined_earning',
-      'total_count', 'total_revenue', 'impressions', 'ctr'
-    ];
-    
-    return validFields.includes(field);
+    return STATS_RAW_FIELDS.includes(field);
   }
 
   /**

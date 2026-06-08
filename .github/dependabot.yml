@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # npm deps — the publish/CI workflows skip `npm audit` on the assumption
+  # Dependabot keeps dependencies patched. This config makes that true.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # Batch routine dev/runtime bumps into one PR to cut noise; security
+      # updates still come through individually and promptly.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # Keep the GitHub Actions (checkout, setup-node, …) pinned versions current.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

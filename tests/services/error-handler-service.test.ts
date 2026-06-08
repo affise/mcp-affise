@@ -157,5 +157,48 @@ describe('ErrorHandlerService', () => {
     });
   });
 
+  // Regression: echoed context.args used to be corrupted by running every string
+  // value through sanitizeErrorMessage — short values ("os","cr","hold") and
+  // numeric IDs/years ("394","2026-06-07") were replaced with the generic
+  // placeholder, and arrays were spread into numeric-keyed objects.
+  describe('createErrorResponse — context.args sanitization', () => {
+    it('preserves benign short and numeric arg values verbatim', () => {
+      const mcpError = errorHandler.createErrorResponse('Invalid field values: x', 'VALIDATION_ERROR', {
+        toolName: 'affise_stats_raw',
+        args: {
+          slice: ['os'],
+          fields: ['clicks', 'cr', 'income'],
+          date_from: '2026-06-07',
+          date_to: '2026-06-07',
+          conversionTypes: ['confirmed', 'hold'],
+          partner: ['394'],
+        },
+      });
+      const args = (mcpError as any).context.args;
+      expect(Array.isArray(args.slice)).toBe(true);
+      expect(args.slice).toEqual(['os']);
+      expect(args.fields).toEqual(['clicks', 'cr', 'income']);
+      expect(args.conversionTypes).toEqual(['confirmed', 'hold']);
+      expect(args.partner).toEqual(['394']);
+      expect(args.date_from).toBe('2026-06-07');
+      expect(args.date_to).toBe('2026-06-07');
+      expect(JSON.stringify(args)).not.toContain('An error occurred');
+    });
+
+    it('still redacts sensitive keys and embedded secrets in arg values', () => {
+      const mcpError = errorHandler.createErrorResponse('boom', 'UNKNOWN_ERROR', {
+        toolName: 'x',
+        args: {
+          api_key: 'super-secret-key-1234567890abcdef',
+          note: 'reach me at jane.doe@example.com or token=ABCDEF1234567890XYZ',
+        },
+      });
+      const args = (mcpError as any).context.args;
+      expect(args.api_key).toBe('[REDACTED]');
+      expect(args.note).not.toContain('jane.doe@example.com');
+      expect(args.note).toContain('[REDACTED]');
+    });
+  });
+
   
 });
