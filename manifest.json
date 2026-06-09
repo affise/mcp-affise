@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "affise-mcp-extension",
   "display_name": "Affise Analytics Extension",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Connect Claude to your Affise affiliate platform for advanced analytics and automation",
   "long_description": "This extension enables Claude to interact with your Affise affiliate marketing platform: explore offers, query statistics and conversions, analyse trafficback, manage partners/advertisers, generate tracking links, and run partner-side queries. Both natural-language and structured tool calls are supported.",
   "author": {
