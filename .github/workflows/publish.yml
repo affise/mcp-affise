@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ inputs.ref }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
           # Need full history + the branch (not detached HEAD) so the
