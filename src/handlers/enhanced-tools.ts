@@ -3,6 +3,7 @@
  * Gradual enhancement with caching, error handling, and validation
  */
 
+import { createHash } from 'crypto';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
@@ -35,6 +36,20 @@ import { listPartnerNews } from '../tools/affise_partner_news.js';
 import { parseQuery, toStatsParams, findDateLikeToken } from '../types/simple-parser.js';
 import { OfferSearchResponse, StatsResponse } from '../types/api-responses.js';
 import { getDateRange } from '../shared/date-utils.js';
+
+// Deterministic serializer for cache keys. JSON.stringify's second argument is
+// a property ALLOWLIST applied at every nesting level (not a sort), which made
+// nested `filter.*` keys vanish from the key — two queries differing only by
+// partner / sub / goal / country shared one cache entry within the TTL.
+export function stableStringify(value: unknown): string {
+  if (value === undefined) return 'null';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(',')}}`;
+}
 
 // Tool definitions (same as before)
 export const TOOLS = [
@@ -2059,8 +2074,7 @@ export class EnhancedToolHandler {
    * Generate cache key
    */
   private generateCacheKey(toolName: string, args: any): string {
-    const sortedArgs = JSON.stringify(args, Object.keys(args || {}).sort());
-    return `${toolName}:${this.hashString(sortedArgs)}`;
+    return `${toolName}:${this.hashString(stableStringify(args))}`;
   }
 
   /**
@@ -2101,17 +2115,8 @@ export class EnhancedToolHandler {
     return cacheTTLs[toolName] || 300000; // Default 5 minutes
   }
 
-  /**
-   * Simple hash function
-   */
   private hashString(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return hash.toString(36);
+    return createHash('sha256').update(str).digest('hex').slice(0, 16);
   }
 
   /**
