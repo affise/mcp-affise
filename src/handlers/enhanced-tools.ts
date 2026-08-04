@@ -32,7 +32,7 @@ import { findPartnerSubs } from '../tools/affise_partner_find_subs.js';
 import { listPartnerNews } from '../tools/affise_partner_news.js';
 
 // Import existing parsers (keep current functionality)
-import { parseQuery, toStatsParams } from '../types/simple-parser.js';
+import { parseQuery, toStatsParams, findDateLikeToken } from '../types/simple-parser.js';
 import { OfferSearchResponse, StatsResponse } from '../types/api-responses.js';
 import { getDateRange } from '../shared/date-utils.js';
 
@@ -64,7 +64,7 @@ export const TOOLS = [
   },
   {
     name: 'affise_stats',
-    description: 'Get statistics with natural language (e.g., "Show me revenue by country last month", "top 10 offers by income last week", "cost dynamics by affiliate and sub1"). Supports: by/breakdown by <dim> [and <dim>, ...]; "dynamics"/"over time"/"trend" auto-adds `day` to slice; "top N <dim> by <metric>" sets limit + sort. Partner names like "aff_crix" are auto-resolved to numeric affiliate_id via /3.0/admin/partners — no need to look up first. Time periods: today/yesterday/last week/this month/last 30 days. Cost / charge / spend → `income` field (admin-only `costs` is gated — use affise_stats_raw for that). Max date range 6 months.',
+    description: 'Get statistics with natural language (e.g., "Show me revenue by country last month", "top 10 offers by income last week", "cost dynamics by affiliate and sub1"). ENGLISH ONLY — translate non-English asks first, and write dates as ISO YYYY-MM-DD (named month phrases like "1-7 July" are NOT parsed). Supports: by/breakdown by <dim> [and <dim>, ...]; "dynamics"/"over time"/"trend" auto-adds `day` to slice; "top N <dim> by <metric>" sets limit + sort. Partner names like "aff_demo" are auto-resolved to numeric affiliate_id via /3.0/admin/partners — no need to look up first. A date or period is REQUIRED — there is no implicit default, and a query without one is rejected. Time periods: today/yesterday/last week/this month/last 30 days, a single day ("2026-07-28", "28.07.2026"), or an explicit "from YYYY-MM-DD to YYYY-MM-DD". Cost / charge / spend → `income` field (admin-only `costs` is gated — use affise_stats_raw for that). Max date range 6 months.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -983,14 +983,25 @@ export class EnhancedToolHandler {
       const statsParams = toStatsParams(parsed);
 
       // Handle date range
-      if (parsed.time_period) {
+      if (parsed.date_from && parsed.date_to) {
+        statsParams.date_from = parsed.date_from;
+        statsParams.date_to = parsed.date_to;
+      } else if (parsed.time_period) {
         const dateRange = getDateRange(parsed.time_period as any);
         statsParams.date_from = dateRange.from;
         statsParams.date_to = dateRange.to;
       } else {
-        const dateRange = getDateRange('last7days');
-        statsParams.date_from = dateRange.from;
-        statsParams.date_to = dateRange.to;
+        // No silent `last7days` default: an unresolved period used to return a
+        // plausible-looking week of whole-account data for a query that asked
+        // for something else entirely.
+        const token = findDateLikeToken(query);
+        return this.errorHandler.createErrorResponse(
+          token
+            ? `Could not parse the date "${token}". Use YYYY-MM-DD or DD.MM.YYYY for a single day, "from <date> to <date>" for a range, or a named period (today, yesterday, last 7 days, this month).`
+            : 'No date or period found in the query. Add a date (YYYY-MM-DD or DD.MM.YYYY), a range ("from <date> to <date>"), or a named period (today, yesterday, last 7 days, last 30 days, this month, last month).',
+          'VALIDATION_ERROR',
+          { toolName: 'affise_stats', args: { query } }
+        );
       }
 
       const result = await getAffiseCustomStats(cfg, statsParams);

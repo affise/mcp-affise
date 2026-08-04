@@ -9,6 +9,8 @@ export interface SimpleQueryInfo {
   categories: string[];
   devices: string[];
   time_period?: string;
+  date_from?: string;
+  date_to?: string;
   metrics: string[];
   dimensions: string[];
   keywords: string[];
@@ -36,7 +38,12 @@ export function parseQuery(query: string): SimpleQueryInfo {
   
   // Time patterns
   const time_period = extractTimePeriod(q);
-  
+
+  // Explicit "from YYYY-MM-DD to YYYY-MM-DD" ranges take precedence over
+  // named periods downstream (the affise_stats handler). A lone date is a
+  // one-day range.
+  const dateRange = extractExplicitDateRange(q) ?? extractSingleDate(q);
+
   // Metric patterns
   const metrics = extractMetrics(q);
   
@@ -54,7 +61,7 @@ export function parseQuery(query: string): SimpleQueryInfo {
   if (countries.length > 0) confidence += 0.2;
   if (categories.length > 0) confidence += 0.25;
   if (devices.length > 0) confidence += 0.15;
-  if (time_period) confidence += 0.3;
+  if (time_period || dateRange) confidence += 0.3;
   if (metrics.length > 0) confidence += 0.2;
   
   const suggestions = confidence < 0.7 ? generateSuggestions(q) : [];
@@ -66,6 +73,8 @@ export function parseQuery(query: string): SimpleQueryInfo {
     categories,
     devices,
     time_period,
+    date_from: dateRange?.date_from,
+    date_to: dateRange?.date_to,
     metrics,
     dimensions,
     keywords,
@@ -73,6 +82,93 @@ export function parseQuery(query: string): SimpleQueryInfo {
     limit: top?.limit,
     order_by: top?.order_by,
   };
+}
+
+// "from 2026-06-29 to 2026-07-05", "between 2026-06-29 and 2026-07-05",
+// "2026-06-29 - 2026-07-05", bare "2026-06-29 to 2026-07-05".
+// Reversed ranges are swapped, calendar-invalid dates are rejected
+// (the pair is dropped and the caller falls back to named periods).
+export function extractExplicitDateRange(
+  query: string,
+): { date_from: string; date_to: string } | undefined {
+  return extractExplicitDateRanges(query)[0];
+}
+
+// Plural form: extract ALL explicit ISO ranges in one query, in text order,
+// deduped. Calendar-invalid pairs are skipped (not fatal), reversed pairs are
+// swapped. extractExplicitDateRange returns the first element for the common
+// single-range case.
+export function extractExplicitDateRanges(
+  query: string,
+): Array<{ date_from: string; date_to: string }> {
+  const DATE = '(\\d{4}-\\d{2}-\\d{2})';
+  const patterns = [
+    new RegExp(`\\bfrom\\s+${DATE}\\s+(?:to|till|until|through)\\s+${DATE}\\b`, 'gi'),
+    new RegExp(`\\bbetween\\s+${DATE}\\s+and\\s+${DATE}\\b`, 'gi'),
+    new RegExp(`\\b${DATE}\\s*(?:to|till|until|through|[-–—])\\s*${DATE}\\b`, 'gi'),
+  ];
+  const seen = new Set<string>();
+  const hits: Array<{ date_from: string; date_to: string; index: number }> = [];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(query)) !== null) {
+      if (!isValidCalendarDate(m[1]) || !isValidCalendarDate(m[2])) continue;
+      const [date_from, date_to] = m[1] <= m[2] ? [m[1], m[2]] : [m[2], m[1]];
+      const key = `${date_from}|${date_to}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push({ date_from, date_to, index: m.index });
+    }
+  }
+  return hits.sort((a, b) => a.index - b.index).map(({ date_from, date_to }) => ({ date_from, date_to }));
+}
+
+function isValidCalendarDate(iso: string): boolean {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+}
+
+const pad2 = (n: string) => n.padStart(2, '0');
+
+// A single explicit date ("2026-07-28", "28.07.2026", "28/07/2026", "2026.07.28")
+// resolves to a one-day range. Ambiguous D/M vs M/D pairs are read as
+// day-first unless the second number rules that out (07/28/2026).
+export function extractSingleDate(
+  query: string,
+): { date_from: string; date_to: string } | undefined {
+  const asRange = (iso: string) =>
+    isValidCalendarDate(iso) ? { date_from: iso, date_to: iso } : undefined;
+
+  const iso = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(query);
+  if (iso) return asRange(`${iso[1]}-${iso[2]}-${iso[3]}`);
+
+  const ymd = /\b(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})\b/.exec(query);
+  if (ymd) return asRange(`${ymd[1]}-${pad2(ymd[2])}-${pad2(ymd[3])}`);
+
+  const pair = /\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})\b/.exec(query);
+  if (pair) {
+    const [, first, second, year] = pair;
+    const [day, month] = Number(second) > 12 && Number(first) <= 12
+      ? [second, first]
+      : [first, second];
+    return asRange(`${year}-${pad2(month)}-${pad2(day)}`);
+  }
+
+  return undefined;
+}
+
+const MONTH_NAMES = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
+const DATE_LIKE_TOKEN = new RegExp(
+  `\\b(?:\\d{1,4}[.\\/-]\\d{1,2}(?:[.\\/-]\\d{1,4})?` +
+  `|\\d{1,2}\\s+(?:${MONTH_NAMES})[a-z]*` +
+  `|(?:${MONTH_NAMES})[a-z]*\\s+\\d{1,2})\\b`,
+  'i',
+);
+
+// Reports a date-looking token so callers can reject an unparseable date
+// instead of silently substituting a default period.
+export function findDateLikeToken(query: string): string | undefined {
+  return DATE_LIKE_TOKEN.exec(query)?.[0];
 }
 
 // "top 10 offers by charge" → { limit: 10, order_by: 'costs' }
@@ -562,8 +658,12 @@ export function toStatsParams(parsed: SimpleQueryInfo): any {
     if (v && v.length && !params[k]) params[k] = v;
   }
 
-  // Set time period
-  if (parsed.time_period) {
+  // Explicit dates win over named periods; period stays for callers that
+  // resolve it themselves (the affise_stats handler).
+  if (parsed.date_from && parsed.date_to) {
+    params.date_from = parsed.date_from;
+    params.date_to = parsed.date_to;
+  } else if (parsed.time_period) {
     params.period = parsed.time_period;
   } else {
     params.period = 'last7days'; // Default
