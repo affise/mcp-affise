@@ -1,6 +1,9 @@
 import * as dotenv from 'dotenv';
 import { initializeSecureConfig, getSecureConfigManager, type SecureConfig } from './services/secure-config-manager.js';
 
+// dotenv >= 17 logs an injection banner via console.log by default; stdout is
+// reserved for JSON-RPC on the stdio transport, so it must stay quiet.
+process.env.DOTENV_CONFIG_QUIET ??= 'true';
 dotenv.config();
 
 /**
