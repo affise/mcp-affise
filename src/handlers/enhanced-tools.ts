@@ -33,7 +33,7 @@ import { findPartnerSubs } from '../tools/affise_partner_find_subs.js';
 import { listPartnerNews } from '../tools/affise_partner_news.js';
 
 // Import existing parsers (keep current functionality)
-import { parseQuery, toStatsParams, findDateLikeToken } from '../types/simple-parser.js';
+import { parseQuery, toStatsParams, findDateLikeToken, extractExplicitDateRanges } from '../types/simple-parser.js';
 import { OfferSearchResponse, StatsResponse } from '../types/api-responses.js';
 import { getDateRange } from '../shared/date-utils.js';
 
@@ -79,7 +79,7 @@ export const TOOLS = [
   },
   {
     name: 'affise_stats',
-    description: 'Get statistics with natural language (e.g., "Show me revenue by country last month", "top 10 offers by income last week", "cost dynamics by affiliate and sub1"). ENGLISH ONLY — translate non-English asks first, and write dates as ISO YYYY-MM-DD (named month phrases like "1-7 July" are NOT parsed). Supports: by/breakdown by <dim> [and <dim>, ...]; "dynamics"/"over time"/"trend" auto-adds `day` to slice; "top N <dim> by <metric>" sets limit + sort. Partner names like "aff_demo" are auto-resolved to numeric affiliate_id via /3.0/admin/partners — no need to look up first. A date or period is REQUIRED — there is no implicit default, and a query without one is rejected. Time periods: today/yesterday/last week/this month/last 30 days, a single day ("2026-07-28", "28.07.2026"), or an explicit "from YYYY-MM-DD to YYYY-MM-DD". Cost / charge / spend → `income` field (admin-only `costs` is gated — use affise_stats_raw for that). Max date range 6 months.',
+    description: 'Get statistics with natural language (e.g., "Show me revenue by country last month", "top 10 offers by income last week", "cost dynamics by affiliate and sub1"). ENGLISH ONLY — translate non-English asks first, and write dates as ISO YYYY-MM-DD (named month phrases like "1-7 July" are NOT parsed). Supports: by/breakdown by <dim> [and <dim>, ...]; "dynamics"/"over time"/"trend" auto-adds `day` to slice; "top N <dim> by <metric>" sets limit + sort. Partner names like "aff_demo" are auto-resolved to numeric affiliate_id via /3.0/admin/partners — no need to look up first. A date or period is REQUIRED — there is no implicit default, and a query without one is rejected. Time periods: today/yesterday/last week/this month/last 30 days, a single day ("2026-07-28", "28.07.2026"), or an explicit "from YYYY-MM-DD to YYYY-MM-DD". MULTIPLE explicit ISO ranges in one ask ("from 2026-07-01 to 2026-07-07 and from 2026-07-08 to 2026-07-14") run one pull per range → data.multi_period with a periods[] array (max 6 ranges). Cost / charge / spend → `income` field (admin-only `costs` is gated — use affise_stats_raw for that). Max date range 6 months.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -996,6 +996,46 @@ export class EnhancedToolHandler {
       // Use existing logic with enhancements
       const parsed = parseQuery(query);
       const statsParams = toStatsParams(parsed);
+
+      // Multiple explicit date ranges ("from A to B and from C to D") → one
+      // pull per range with the SAME slice/fields/filters. The parser only
+      // tracks a single range, so without this a two-week ask silently used
+      // just the first. Capped at MAX_RANGES pulls to bound cost; extras are
+      // dropped with a note.
+      const MAX_RANGES = 6;
+      const ranges = extractExplicitDateRanges(query);
+      if (ranges.length >= 2) {
+        const used = ranges.slice(0, MAX_RANGES);
+        const periods: any[] = [];
+        for (const r of used) {
+          const p: any = { ...statsParams, date_from: r.date_from, date_to: r.date_to };
+          delete p.period;
+          const res = await getAffiseCustomStats(cfg, p);
+          if (res.status === 'error') {
+            return this.errorHandler.createErrorResponse(
+              `Range ${r.date_from}..${r.date_to}: ${res.message}`,
+              'STATS_ERROR',
+              { toolName: 'affise_stats', args: { query } }
+            );
+          }
+          periods.push({
+            date_from: r.date_from,
+            date_to: r.date_to,
+            data: res.data,
+            summary: res.data?.stats ? this.calculateSummary(res.data.stats) : undefined,
+          });
+        }
+        const dropped = ranges.length - used.length;
+        const note = dropped > 0
+          ? ` (${dropped} additional range(s) dropped; max ${MAX_RANGES} per call)`
+          : '';
+        return {
+          status: 'ok',
+          message: `Stats retrieved for ${periods.length} date ranges${note}`,
+          data: { multi_period: true, periods } as any,
+          timestamp: new Date().toISOString()
+        };
+      }
 
       // Handle date range
       if (parsed.date_from && parsed.date_to) {

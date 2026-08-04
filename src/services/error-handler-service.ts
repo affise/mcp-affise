@@ -263,9 +263,9 @@ export class ErrorHandlerService {
     const sensitivePatterns = [
       // API keys (various formats)
       /api[_-]?key[=:\s]+[a-zA-Z0-9]{16,}/gi,
-      /bearer\s+[a-zA-Z0-9]{16,}/gi,
+      /bearer\s+[^\s,}"]+/gi,
       /token[=:\s]+[a-zA-Z0-9]{16,}/gi,
-      
+
       // URLs with credentials
       /https?:\/\/[^@\s]+:[^@\s]+@[^\s]+/gi,
       
@@ -284,8 +284,14 @@ export class ErrorHandlerService {
       // Credit card numbers
       /\b(?:\d[ -]*?){13,16}\b/g,
 
-      // Phone numbers
-      /\+?[1-9]\d{1,14}(\s*x\d+)?/g,
+      // Phone numbers — a plausible phone SHAPE only: an international
+      // `+` form, or a separated 3-3-4 group. The old `\+?[1-9]\d{1,14}`
+      // matched every bare 2-16 digit number, so it redacted affiliate ids
+      // ("Ambiguous partner: id=325" → "id=[REDACTED]"), row counts, dates
+      // ("2026-07-08" → "[REDACTED]-07-08") and the digits inside our own
+      // guidance ("last 30 days" → "last [REDACTED] days").
+      /\+\d[\d\s().-]{6,}\d(\s*x\d+)?/g,
+      /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b(\s*x\d+)?/g,
       
       // Stack trace file paths
       /at\s+.*?\s+\([^)]*\)/gi,
@@ -306,13 +312,21 @@ export class ErrorHandlerService {
     // legitimate English and must NOT trigger redaction — require an
     // explicit `=` or `:` separator. Optional whitespace after the
     // separator is fine (e.g. `Authorization: Bearer xxx`).
+    // These carry the redaction on their own now: until the over-broad phone
+    // rule above was narrowed, secrets like `key: abc123-secret-key-xyz789`
+    // survived every dedicated pattern and only looked redacted because the
+    // digits inside them were being mangled.
     const sensitiveKeywords = [
-      'password', 'secret', 'token', 'auth', 'credential',
-      'api_key', 'api-key', 'apikey', 'access_token', 'refresh_token'
+      'password', 'secret', 'token', 'authorization', 'auth', 'credential',
+      'api_key', 'api-key', 'apikey', 'access_token', 'refresh_token',
+      'private_key', 'privatekey', 'key'
     ];
 
     for (const keyword of sensitiveKeywords) {
-      const keyValuePattern = new RegExp(`\\b${keyword}\\s*[=:]\\s*[^\\s,}]+`, 'gi');
+      const keyValuePattern = new RegExp(
+        `\\b${keyword}"?\\s*[=:]\\s*"?(?:bearer\\s+)?[^\\s,}"]+`,
+        'gi',
+      );
       sanitized = sanitized.replace(keyValuePattern, `${keyword}=[REDACTED]`);
     }
 
