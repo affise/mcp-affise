@@ -157,13 +157,26 @@ describe('ErrorHandlerService Sanitization', () => {
       expect(sanitized).toBe('');
     });
 
-    it('should sanitize potential phone numbers in error messages', () => {
-      const message = 'Connection timeout after 30 seconds';
-      const sanitized = errorHandler.sanitizeErrorMessage(message);
+    it('redacts phone numbers that actually look like phone numbers', () => {
+      expect(errorHandler.sanitizeErrorMessage('Contact +1 415 555 2671 for access'))
+        .toBe('Contact [REDACTED] for access');
+      expect(errorHandler.sanitizeErrorMessage('Escalate to 415-555-2671 please'))
+        .toBe('Escalate to [REDACTED] please');
+    });
 
-      // Note: The sanitizer is aggressive and may redact numbers that look like phone numbers
-      expect(sanitized).toContain('Connection timeout');
-      expect(sanitized).toContain('seconds');
+    it('keeps plain numbers, ids and dates in error messages intact', () => {
+      // The old `\+?[1-9]\d{1,14}` pattern matched every bare 2-16 digit run, so
+      // affiliate ids, counts and the digits inside our own guidance were lost.
+      expect(errorHandler.sanitizeErrorMessage('Connection timeout after 30 seconds'))
+        .toBe('Connection timeout after 30 seconds');
+      expect(errorHandler.sanitizeErrorMessage('Ambiguous partner "acme": 5 matches — id=325, id=999'))
+        .toBe('Ambiguous partner "acme": 5 matches — id=325, id=999');
+      expect(errorHandler.sanitizeErrorMessage('Use a named period (today, last 7 days, last 30 days)'))
+        .toBe('Use a named period (today, last 7 days, last 30 days)');
+      expect(errorHandler.sanitizeErrorMessage('Could not parse the date "28 july"'))
+        .toBe('Could not parse the date "28 july"');
+      expect(errorHandler.sanitizeErrorMessage('Range 2026-07-08..2026-07-14: request failed'))
+        .toBe('Range 2026-07-08..2026-07-14: request failed');
     });
 
     it('should keep error messages without sensitive data', () => {
