@@ -186,7 +186,7 @@ export const TABULAR_OUTPUT_SCHEMA = {
 export const OFFER_SEARCH_OUTPUT_SCHEMA = {
   status: z.string().describe("'ok' on success, 'error' on a handled failure"),
   message: z.string().optional(),
-  offers: z.array(z.unknown()).optional().describe('Matched offers; the widget reads card data straight off each entry.'),
+  offers: z.array(z.unknown()).optional().describe('Matched offers;'),
   total_found: z.number().int().optional(),
   has_more_results: z.boolean().optional(),
   query_parsed: z.unknown().optional(),

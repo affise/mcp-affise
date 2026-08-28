@@ -34,6 +34,22 @@ describe('buildPaginationCursor', () => {
     expect(c.total).toBe(42);
   });
 
+  // Boundary: page * perPage === total exactly. Without this case a `<` vs `<=`
+  // slip is invisible — the other cases compute 100-vs-280, 300-vs-280 and
+  // 100-vs-42, none of which distinguish the two operators. Getting it wrong
+  // hands the client a phantom empty extra page.
+  it('reports hasMore=false when the last page lands exactly on the total', () => {
+    const c = buildPaginationCursor('affise_list_partners', { limit: 100, page: 3 }, gridResult(100, 300, 3));
+    expect(c.total).toBe(300);
+    expect(c.page * c.perPage).toBe(c.total);
+    expect(c.hasMore).toBe(false);
+  });
+
+  it('reports hasMore when one row spills past an exact page boundary', () => {
+    const c = buildPaginationCursor('affise_list_partners', { limit: 100, page: 3 }, gridResult(100, 301, 3));
+    expect(c.hasMore).toBe(true);
+  });
+
   it('returns null when the result has no grid (error/empty)', () => {
     expect(buildPaginationCursor('affise_list_partners', {}, { status: 'error', message: 'boom' })).toBeNull();
   });

@@ -1,17 +1,36 @@
 /**
- * Guards the loadConfig() -> EnhancedToolHandler.executeTool() seam.
+ * Guards the loadConfig() -> EnhancedToolHandler.executeTool() -> handler seam.
  *
- * Every other test injects a plain-object config, so the whole suite stayed
- * green while the stdio transport was returning "apiKey not provided" for every
- * credential-using tool. The real object on that path is a SecureConfigWrapper
- * whose baseUrl/apiKey are prototype getters, and `{ ...wrapper }` copies own
- * enumerable properties only.
+ * Every other test in the suite injects a plain-object config, so the whole
+ * suite stayed green while the stdio transport returned "baseUrl or apiKey not
+ * provided" for every credential-using tool. The real object on that path is a
+ * SecureConfigWrapper whose baseUrl/apiKey are prototype getters, and
+ * `{ ...wrapper }` copies own enumerable properties only.
+ *
+ * This file must drive the REAL EnhancedToolHandler. An earlier version of it
+ * re-implemented the normalization expression locally and asserted against its
+ * own copy, so deleting the fix from the production file left it green — it
+ * could not fail. If you change how executeTool resolves the config, this test
+ * has to be the thing that tells you.
  */
 
-import { describe, it, expect } from 'vitest';
-import { normalizeBaseUrl } from '../../src/utils/url.js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-/** Same shape as the SecureConfigWrapper returned by loadConfig(). */
+/** Captures the config object each dispatched handler is handed. */
+const seen: Array<{ baseUrl?: string; apiKey?: string; [k: string]: unknown } | null> = [];
+
+vi.mock('../../src/handlers/tools/index.js', () => ({
+  HANDLER_REGISTRY: {
+    affise_status: async (_args: unknown, config: any) => {
+      seen.push(config);
+      return { status: 'success', message: 'ok', data: {}, timestamp: new Date().toISOString() };
+    },
+  },
+}));
+
+import { EnhancedToolHandler } from '../../src/handlers/enhanced-tools.js';
+
+/** Same shape as the SecureConfigWrapper that loadConfig() returns. */
 class AccessorBackedConfig {
   constructor(private inner: { baseUrl: string; apiKey: string }) {}
   get baseUrl(): string {
@@ -22,56 +41,55 @@ class AccessorBackedConfig {
   }
 }
 
-/** The normalization performed in EnhancedToolHandler.executeTool(). */
-function resolveConfig(rawConfig: { baseUrl: string; apiKey: string } | undefined) {
-  return rawConfig
-    ? { ...rawConfig, baseUrl: normalizeBaseUrl(rawConfig.baseUrl), apiKey: rawConfig.apiKey }
-    : rawConfig;
-}
+const CREDS = { baseUrl: 'https://api-company.affise.com', apiKey: 'k1234567890abcdef' };
 
 describe('config resolution across the accessor seam', () => {
-  it('keeps apiKey when the config exposes it as a prototype getter', () => {
-    const wrapper = new AccessorBackedConfig({
-      baseUrl: 'https://api-company.affise.com',
-      apiKey: 'k1234567890abcdef',
-    });
-
-    const resolved = resolveConfig(wrapper);
-
-    expect(resolved?.apiKey).toBe('k1234567890abcdef');
-    expect(resolved?.baseUrl).toBe('https://api-company.affise.com');
+  beforeEach(() => {
+    seen.length = 0;
   });
 
-  it('demonstrates why the explicit re-read is required', () => {
-    const wrapper = new AccessorBackedConfig({
-      baseUrl: 'https://api-company.affise.com',
-      apiKey: 'k1234567890abcdef',
-    });
+  it('hands the handler a usable apiKey when the config exposes it as a getter', async () => {
+    const handler = new EnhancedToolHandler(new AccessorBackedConfig(CREDS) as any);
+
+    await handler.executeTool('affise_status', {});
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
+    expect(seen[0]?.baseUrl).toBe(CREDS.baseUrl);
+  });
+
+  it('does the same for a per-request session that exposes getters', async () => {
+    const handler = new EnhancedToolHandler(null);
+
+    await handler.executeTool('affise_status', {}, new AccessorBackedConfig(CREDS) as any);
+
+    expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
+  });
+
+  it('normalizes a trailing slash without losing the key', async () => {
+    const handler = new EnhancedToolHandler(
+      new AccessorBackedConfig({ ...CREDS, baseUrl: `${CREDS.baseUrl}/` }) as any,
+    );
+
+    await handler.executeTool('affise_status', {});
+
+    expect(seen[0]?.baseUrl).toBe(CREDS.baseUrl);
+    expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
+  });
+
+  it('preserves extra fields on a plain session object', async () => {
+    const handler = new EnhancedToolHandler(null);
+
+    await handler.executeTool('affise_status', {}, { ...CREDS, sessionId: 'sess-123' } as any);
+
+    expect(seen[0]?.sessionId).toBe('sess-123');
+    expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
+  });
+
+  it('documents why the explicit re-read is required', () => {
+    const wrapper = new AccessorBackedConfig(CREDS);
 
     expect(Object.keys(wrapper)).not.toContain('apiKey');
     expect({ ...wrapper }.apiKey).toBeUndefined();
-  });
-
-  it('still normalizes a trailing slash', () => {
-    const wrapper = new AccessorBackedConfig({
-      baseUrl: 'https://api-company.affise.com/',
-      apiKey: 'k1234567890abcdef',
-    });
-
-    expect(resolveConfig(wrapper)?.baseUrl).toBe('https://api-company.affise.com');
-  });
-
-  it('preserves extra fields on a plain session object', () => {
-    const session = {
-      baseUrl: 'https://api-company.affise.com/',
-      apiKey: 'k1234567890abcdef',
-      sessionId: 'sess-123',
-    };
-
-    const resolved = resolveConfig(session) as typeof session;
-
-    expect(resolved.sessionId).toBe('sess-123');
-    expect(resolved.apiKey).toBe('k1234567890abcdef');
-    expect(resolved.baseUrl).toBe('https://api-company.affise.com');
   });
 });
