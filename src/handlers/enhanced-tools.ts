@@ -121,9 +121,20 @@ export class EnhancedToolHandler {
       // funnels through — so a trailing slash never reaches the string-concat URL
       // builders and turns into a 404 (`…com//3.0/...`). Covers env, static-token,
       // and already-stored OAuth sessions alike.
+      // `apiKey` is re-read explicitly, not left to the spread: `this.config`
+      // is a SecureConfigWrapper whose baseUrl/apiKey are prototype getters,
+      // and object spread copies own enumerable properties only. Spreading
+      // alone yields `{ secureConfig }` — baseUrl survives because it is
+      // reassigned here, apiKey silently becomes undefined, and every
+      // credential-using tool fails with "apiKey not provided". This package
+      // is stdio-only, so that path is the only path.
       const rawConfig = userSession || this.config;
       const config = rawConfig
-        ? { ...rawConfig, baseUrl: normalizeBaseUrl(rawConfig.baseUrl) }
+        ? {
+            ...rawConfig,
+            baseUrl: normalizeBaseUrl(rawConfig.baseUrl),
+            apiKey: rawConfig.apiKey,
+          }
         : rawConfig;
 
       // Validate configuration (except for status check)
