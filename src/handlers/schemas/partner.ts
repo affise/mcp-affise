@@ -51,7 +51,7 @@ const PARTNER_OFFERS_INPUT_SHAPE = {
 
 export const affise_partner_offers = {
   title: 'Affise Partner Offers',
-  description: "List offers AVAILABLE to the authenticated partner (GET /3.0/partner/offers) — offers the partner can request access to. The catalog can be very large (100K+ on big tenants); narrow with `search`, `countries`, `categories`, or `int_id` before raising `limit`. Default 100, max 500. Use affise_partner_live_offers for currently-running offers.",
+  description: "List offers AVAILABLE to the authenticated partner (GET /3.0/partner/offers) — offers the partner can request access to. The catalog can be very large (100K+ on big tenants); narrow with `search`, `countries`, `categories`, or `int_id` before raising `limit`. Default 100, max 500. Use affise_partner_live_offers for currently-running offers. REQUIRES a partner (affiliate) API key.",
   inputSchema: PARTNER_OFFERS_INPUT_SHAPE,
   _meta: {
     'affise/role': 'partner',
@@ -60,7 +60,7 @@ export const affise_partner_offers = {
 
 export const affise_partner_live_offers = {
   title: 'Affise Partner Live Offers',
-  description: 'List offers the authenticated partner is CURRENTLY RUNNING (GET /3.0/partner/live-offers). Same filter shape as affise_partner_offers but scoped to active connections — usually a small portfolio.',
+  description: 'List offers the authenticated partner is CURRENTLY RUNNING (GET /3.0/partner/live-offers). Same filter shape as affise_partner_offers but scoped to active connections — usually a small portfolio. REQUIRES a partner (affiliate) API key.',
   inputSchema: PARTNER_OFFERS_INPUT_SHAPE,
   _meta: {
     'affise/role': 'partner',
@@ -69,7 +69,7 @@ export const affise_partner_live_offers = {
 
 export const affise_partner_find_subs = {
   title: 'Find Affise Partner Subs',
-  description: "Discover distinct sub values in the partner's own data (GET /3.0/stats/find-subs). Pick ONE sub key (sub1..sub5) — backend ignores all but the first. Use for exploratory analytics: \"what sub3 values do I have\" → then drill via affise_stats_raw.",
+  description: "Discover distinct sub values in the partner's own data (GET /3.0/stats/find-subs). Pick ONE sub key (sub1..sub5) — backend ignores all but the first. Use for exploratory analytics: \"what sub3 values do I have\" → then drill via affise_stats_raw. REQUIRES a partner (affiliate) API key.",
   inputSchema: {
     sub_key: z.enum(PARTNER_SUB_KEY_ENUM).describe('Which sub field to enumerate (required, one of sub1..sub5)'),
     sub_value: z.string().optional().describe('Optional partial-value filter; empty returns top-N distinct values'),
@@ -84,7 +84,7 @@ export const affise_partner_find_subs = {
 
 export const affise_partner_news = {
   title: 'Affise Partner News',
-  description: 'List platform announcements visible to the partner (GET /3.0/news). Uses skip/limit pagination (NOT page). Pass fixed=true for pinned items only. A 404 from the API is normalised to an empty list. Embedded base64 images in news bodies are replaced with `[IMAGE]` markers BY DEFAULT — pass `strip_images=false` to keep raw image bytes.',
+  description: 'List platform announcements visible to the partner (GET /3.0/news). Uses skip/limit pagination (NOT page). Pass fixed=true for pinned items only. A 404 from the API is normalised to an empty list. Embedded base64 images in news bodies are replaced with `[IMAGE]` markers BY DEFAULT — pass `strip_images=false` to keep raw image bytes. REQUIRES a partner (affiliate) API key.',
   inputSchema: {
     limit: z.number().int().min(1).optional().describe('Items per page (server default applied if omitted)'),
     skip: z.number().int().min(0).optional().describe('Offset (default 0)'),
