@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parseQuery, extractSingleDate, findDateLikeToken } from '../../src/types/simple-parser.js';
+import { normalizeRuToEn } from '../../src/types/ru-normalize.js';
 
 describe('extractSingleDate', () => {
   it.each([
@@ -50,6 +51,12 @@ describe('parseQuery — single date wiring', () => {
     const p = parseQuery('clicks from 2026-07-01 to 2026-07-15');
     expect(p.date_from).toBe('2026-07-01');
     expect(p.date_to).toBe('2026-07-15');
+  });
+
+  it('resolves the dotted date in a normalized RU/UA query', () => {
+    const p = parseQuery(normalizeRuToEn('статистика за 28.07.2026 по партнеру 325 по саб2'));
+    expect(p.date_from).toBe('2026-07-28');
+    expect(p.date_to).toBe('2026-07-28');
   });
 });
 

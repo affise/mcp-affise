@@ -19,6 +19,9 @@ export interface SimpleQueryInfo {
   // Populated by extractTopN(); consumed by toStatsParams().
   limit?: number;
   order_by?: string;
+  // Period-over-period comparison intent ("... vs last month", "WoW", "compared to").
+  // When true, handleStatsNL routes to affise_stats_compare instead of a single pull.
+  compare?: boolean;
 }
 
 /**
@@ -37,11 +40,16 @@ export function parseQuery(query: string): SimpleQueryInfo {
   const devices = extractDevices(q);
   
   // Time patterns
-  const time_period = extractTimePeriod(q);
+  let time_period = extractTimePeriod(q);
+
+  // Period-over-period intent ("vs last month", "WoW", "compared to the week before").
+  // The current period is taken from the text BEFORE the comparison keyword so
+  // "this month vs last month" resolves current=thismonth (not lastmonth).
+  const cmp = extractComparison(q);
+  if (cmp.compare && cmp.currentPeriod) time_period = cmp.currentPeriod;
 
   // Explicit "from YYYY-MM-DD to YYYY-MM-DD" ranges take precedence over
-  // named periods downstream (the affise_stats handler). A lone date is a
-  // one-day range.
+  // named periods downstream (handleStatsNL). A lone date is a one-day range.
   const dateRange = extractExplicitDateRange(q) ?? extractSingleDate(q);
 
   // Metric patterns
@@ -81,94 +89,30 @@ export function parseQuery(query: string): SimpleQueryInfo {
     suggestions,
     limit: top?.limit,
     order_by: top?.order_by,
+    compare: cmp.compare,
   };
 }
 
-// "from 2026-06-29 to 2026-07-05", "between 2026-06-29 and 2026-07-05",
-// "2026-06-29 - 2026-07-05", bare "2026-06-29 to 2026-07-05".
-// Reversed ranges are swapped, calendar-invalid dates are rejected
-// (the pair is dropped and the caller falls back to named periods).
-export function extractExplicitDateRange(
-  query: string,
-): { date_from: string; date_to: string } | undefined {
-  return extractExplicitDateRanges(query)[0];
-}
+// Detect period-over-period comparison intent and derive the CURRENT period.
+// The current period is read from the text before the comparison keyword, so
+// "this month vs last month" yields current=thismonth (extractTimePeriod alone
+// would return lastmonth because it matches the first pattern found anywhere).
+const COMPARISON_RE =
+  /\b(vs\.?|versus|compared\s+(?:to|with)|week[- ]over[- ]week|month[- ]over[- ]month|quarter[- ]over[- ]quarter|year[- ]over[- ]year|wow|mom|qoq|yoy|previous\s+period|prior\s+period|(?:the\s+)?(?:week|month|quarter|year|period)\s+before)\b/i;
 
-// Plural form: extract ALL explicit ISO ranges in one query, in text order,
-// deduped. Calendar-invalid pairs are skipped (not fatal), reversed pairs are
-// swapped. extractExplicitDateRange returns the first element for the common
-// single-range case.
-export function extractExplicitDateRanges(
-  query: string,
-): Array<{ date_from: string; date_to: string }> {
-  const DATE = '(\\d{4}-\\d{2}-\\d{2})';
-  const patterns = [
-    new RegExp(`\\bfrom\\s+${DATE}\\s+(?:to|till|until|through)\\s+${DATE}\\b`, 'gi'),
-    new RegExp(`\\bbetween\\s+${DATE}\\s+and\\s+${DATE}\\b`, 'gi'),
-    new RegExp(`\\b${DATE}\\s*(?:to|till|until|through|[-–—])\\s*${DATE}\\b`, 'gi'),
-  ];
-  const seen = new Set<string>();
-  const hits: Array<{ date_from: string; date_to: string; index: number }> = [];
-  for (const re of patterns) {
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(query)) !== null) {
-      if (!isValidCalendarDate(m[1]) || !isValidCalendarDate(m[2])) continue;
-      const [date_from, date_to] = m[1] <= m[2] ? [m[1], m[2]] : [m[2], m[1]];
-      const key = `${date_from}|${date_to}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      hits.push({ date_from, date_to, index: m.index });
-    }
+function extractComparison(query: string): { compare: boolean; currentPeriod?: string } {
+  const m = query.match(COMPARISON_RE);
+  if (!m) return { compare: false };
+  const left = query.slice(0, m.index);
+  let currentPeriod = extractTimePeriod(left) || extractTimePeriod(query);
+  if (!currentPeriod) {
+    const kw = m[1].toLowerCase();
+    if (/^(wow|week)/.test(kw)) currentPeriod = 'thisweek';
+    else if (/^(mom|month)/.test(kw)) currentPeriod = 'thismonth';
+    else if (/^(qoq|quarter)/.test(kw)) currentPeriod = 'thisquarter';
+    else if (/^(yoy|year)/.test(kw)) currentPeriod = 'thisyear';
   }
-  return hits.sort((a, b) => a.index - b.index).map(({ date_from, date_to }) => ({ date_from, date_to }));
-}
-
-function isValidCalendarDate(iso: string): boolean {
-  const d = new Date(`${iso}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
-}
-
-const pad2 = (n: string) => n.padStart(2, '0');
-
-// A single explicit date ("2026-07-28", "28.07.2026", "28/07/2026", "2026.07.28")
-// resolves to a one-day range. Ambiguous D/M vs M/D pairs are read as
-// day-first unless the second number rules that out (07/28/2026).
-export function extractSingleDate(
-  query: string,
-): { date_from: string; date_to: string } | undefined {
-  const asRange = (iso: string) =>
-    isValidCalendarDate(iso) ? { date_from: iso, date_to: iso } : undefined;
-
-  const iso = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(query);
-  if (iso) return asRange(`${iso[1]}-${iso[2]}-${iso[3]}`);
-
-  const ymd = /\b(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})\b/.exec(query);
-  if (ymd) return asRange(`${ymd[1]}-${pad2(ymd[2])}-${pad2(ymd[3])}`);
-
-  const pair = /\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})\b/.exec(query);
-  if (pair) {
-    const [, first, second, year] = pair;
-    const [day, month] = Number(second) > 12 && Number(first) <= 12
-      ? [second, first]
-      : [first, second];
-    return asRange(`${year}-${pad2(month)}-${pad2(day)}`);
-  }
-
-  return undefined;
-}
-
-const MONTH_NAMES = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
-const DATE_LIKE_TOKEN = new RegExp(
-  `\\b(?:\\d{1,4}[.\\/-]\\d{1,2}(?:[.\\/-]\\d{1,4})?` +
-  `|\\d{1,2}\\s+(?:${MONTH_NAMES})[a-z]*` +
-  `|(?:${MONTH_NAMES})[a-z]*\\s+\\d{1,2})\\b`,
-  'i',
-);
-
-// Reports a date-looking token so callers can reject an unparseable date
-// instead of silently substituting a default period.
-export function findDateLikeToken(query: string): string | undefined {
-  return DATE_LIKE_TOKEN.exec(query)?.[0];
+  return { compare: true, currentPeriod };
 }
 
 // "top 10 offers by charge" → { limit: 10, order_by: 'costs' }
@@ -241,6 +185,94 @@ function extractTimePeriod(query: string): string | undefined {
     }
   }
   return undefined;
+}
+
+// "from 2026-06-29 to 2026-07-05", "between 2026-06-29 and 2026-07-05",
+// "2026-06-29 - 2026-07-05", bare "2026-06-29 to 2026-07-05".
+// Reversed ranges are swapped, calendar-invalid dates are rejected
+// (the pair is dropped and the caller falls back to named periods).
+export function extractExplicitDateRange(
+  query: string,
+): { date_from: string; date_to: string } | undefined {
+  return extractExplicitDateRanges(query)[0];
+}
+
+// Plural form: extract ALL explicit ISO ranges in one query, in text order,
+// deduped. Powers multi-range exports ("from A to B and from C to D") — the
+// stats handler fans out one pull per range. Calendar-invalid pairs are skipped
+// (not fatal), reversed pairs are swapped. extractExplicitDateRange returns the
+// first element for the common single-range case.
+export function extractExplicitDateRanges(
+  query: string,
+): Array<{ date_from: string; date_to: string }> {
+  const DATE = '(\\d{4}-\\d{2}-\\d{2})';
+  const patterns = [
+    new RegExp(`\\bfrom\\s+${DATE}\\s+(?:to|till|until|through)\\s+${DATE}\\b`, 'gi'),
+    new RegExp(`\\bbetween\\s+${DATE}\\s+and\\s+${DATE}\\b`, 'gi'),
+    new RegExp(`\\b${DATE}\\s*(?:to|till|until|through|[-–—])\\s*${DATE}\\b`, 'gi'),
+  ];
+  const seen = new Set<string>();
+  const hits: Array<{ date_from: string; date_to: string; index: number }> = [];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(query)) !== null) {
+      if (!isValidCalendarDate(m[1]) || !isValidCalendarDate(m[2])) continue;
+      const [date_from, date_to] = m[1] <= m[2] ? [m[1], m[2]] : [m[2], m[1]];
+      const key = `${date_from}|${date_to}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push({ date_from, date_to, index: m.index });
+    }
+  }
+  return hits.sort((a, b) => a.index - b.index).map(({ date_from, date_to }) => ({ date_from, date_to }));
+}
+
+function isValidCalendarDate(iso: string): boolean {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+}
+
+const pad2 = (n: string) => n.padStart(2, '0');
+
+// A single explicit date ("2026-07-28", "28.07.2026", "28/07/2026", "2026.07.28")
+// resolves to a one-day range. Ambiguous D/M vs M/D pairs are read as
+// day-first unless the second number rules that out (07/28/2026).
+export function extractSingleDate(
+  query: string,
+): { date_from: string; date_to: string } | undefined {
+  const asRange = (iso: string) =>
+    isValidCalendarDate(iso) ? { date_from: iso, date_to: iso } : undefined;
+
+  const iso = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(query);
+  if (iso) return asRange(`${iso[1]}-${iso[2]}-${iso[3]}`);
+
+  const ymd = /\b(\d{4})[.\/](\d{1,2})[.\/](\d{1,2})\b/.exec(query);
+  if (ymd) return asRange(`${ymd[1]}-${pad2(ymd[2])}-${pad2(ymd[3])}`);
+
+  const pair = /\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})\b/.exec(query);
+  if (pair) {
+    const [, first, second, year] = pair;
+    const [day, month] = Number(second) > 12 && Number(first) <= 12
+      ? [second, first]
+      : [first, second];
+    return asRange(`${year}-${pad2(month)}-${pad2(day)}`);
+  }
+
+  return undefined;
+}
+
+const MONTH_NAMES = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
+const DATE_LIKE_TOKEN = new RegExp(
+  `\\b(?:\\d{1,4}[.\\/-]\\d{1,2}(?:[.\\/-]\\d{1,4})?` +
+  `|\\d{1,2}\\s+(?:${MONTH_NAMES})[a-z]*` +
+  `|(?:${MONTH_NAMES})[a-z]*\\s+\\d{1,2})\\b`,
+  'i',
+);
+
+// Reports a date-looking token so callers can reject an unparseable date
+// instead of silently substituting a default period.
+export function findDateLikeToken(query: string): string | undefined {
+  return DATE_LIKE_TOKEN.exec(query)?.[0];
 }
 
 // Extract metrics
@@ -397,7 +429,13 @@ function extractDimensions(query: string): string[] {
     goal: 'goal', goals: 'goal',
   };
   const STOP_WORDS = /\b(?:last|this|yesterday|today|next|past|for|with|filter|where|limit|order|top|in)\b/i;
-  const byGroupRegex = /\b(?:by|breakdown\s+by)\s+([a-z][a-z0-9_,\s/+]*?)(?=\s+(?:last|this|yesterday|today|next|past|for|with|filter|where|limit|order|top|in)\b|$)/gi;
+  // The group also terminates before an entity FILTER — "<entity> <id-number>"
+  // (e.g. "partner 325", "offer 12345"). Those are filters, not slice tokens;
+  // without this boundary the greedy tail pulls `partner`/`offer` into the slice
+  // as an `affiliate`/`offer` dimension. A bare "by partner" (no trailing id)
+  // stays a legitimate slice dimension, and multi-entity slices like
+  // "by affiliate and offer" are unaffected (no id follows).
+  const byGroupRegex = /\b(?:by|breakdown\s+by)\s+([a-z][a-z0-9_,\s/+]*?)(?=\s+(?:last|this|yesterday|today|next|past|for|with|filter|where|limit|order|top|in)\b|\s+(?:partner|affiliate|offer)(?:\s+id)?\s+\d|$)/gi;
   let byMatch: RegExpExecArray | null;
   while ((byMatch = byGroupRegex.exec(query)) !== null) {
     const tail = byMatch[1].trim();
@@ -440,39 +478,23 @@ function extractDimensions(query: string): string[] {
   // Sub-ID dimensions. Affise accepts sub1..sub30 as slice values (filter is
   // capped at sub8 per Filter.php; slice/order have no cap).
   //
-  // The marker prefix is REQUIRED so we don't catch bare `sub5` from
-  // key=value filter forms ("os=Unknown sub5=abc") — those are handled by
-  // extractFilters(), not here.
+  // Any bare mention of `subN` in prose is a slice dimension — "by sub2",
+  // "breakdown by sub5", "top 10 sub3", or just "sub2 stats for partner 325".
+  // A marker prefix is NOT required: NL clients rarely phrase it as "by subN",
+  // and dropping the mention silently returned a day-only slice (the reported
+  // "can't break stats down by sub2" bug).
   //
-  // Recognized forms:
-  //   "by subN"              | "by sub5"
-  //   "breakdown by subN"    | "breakdown by sub3"
-  //   "top N by subM"        | "top 10 by sub5"
-  //   "top N subM"           | "top 10 sub5"
-  const subDimRegex = /(?:\bby\s+|\bbreakdown\s+by\s+|\btop\s+\d+\s+(?:by\s+)?)sub(\d+)\b/gi;
+  // The negative lookahead `(?![:=])` is the one guard: `subN=value` / `subN:value`
+  // is a key=value FILTER ("os=Unknown sub5=abc"), handled by extractFilters(),
+  // not a slice. `\bsub(\d+)\b` also avoids false matches inside words
+  // ("substring") and partner clientIds ("sub2abc").
+  const subDimRegex = /\bsub(\d+)\b(?!\s*[:=])/gi;
   let subMatch: RegExpExecArray | null;
-  let foundAnySubDim = false;
   while ((subMatch = subDimRegex.exec(query)) !== null) {
     const n = Number(subMatch[1]);
     if (n >= 1 && n <= 30) {
       const key = `sub${n}`;
       if (!found.includes(key)) found.push(key);
-      foundAnySubDim = true;
-    }
-  }
-
-  // If at least one sub-dim was found via a marker, also pick up sibling
-  // sub-IDs joined by conjunctions ("breakdown by sub1 and sub5"). Negative
-  // lookahead for `:` / `=` keeps us from catching filter-form values.
-  if (foundAnySubDim) {
-    const conjRegex = /(?:\band\s+|\bor\s+|,\s*)sub(\d+)\b(?!\s*[:=])/gi;
-    let conjMatch: RegExpExecArray | null;
-    while ((conjMatch = conjRegex.exec(query)) !== null) {
-      const n = Number(conjMatch[1]);
-      if (n >= 1 && n <= 30) {
-        const key = `sub${n}`;
-        if (!found.includes(key)) found.push(key);
-      }
     }
   }
 
@@ -534,6 +556,25 @@ export function extractFilters(query: string): Record<string, string[]> {
         .filter(v => /[_\-\d]/.test(v) && !/^sub\d+$/i.test(v));
       if (values.length) out.partner = values;
     }
+  }
+
+  // 2c. Advertiser / supplier prose (admin-only filters):
+  //   "for advertiser 507f1f77bcf86cd799439011"  → 24-char MongoId, used as-is
+  //   'advertiser "Acme Mobile"'                  → quoted multi-word name
+  //   "advertiser Acme"                           → single identifier token
+  // getAffiseCustomStats auto-resolves any non-MongoID value → MongoId via
+  // /3.0/admin/advertisers?name=. Multi-word names MUST be quoted so the NL
+  // tokenizer does not swallow trailing time phrases ("... last 30 days").
+  const ADVERTISER_STOPWORDS =
+    /^(offers?|managers?|names?|performance|report|reports|stats?|statistics|breakdown|data|metrics?|revenue|conversions?)$/i;
+  for (const field of ['advertiser', 'supplier']) {
+    if (out[field]) continue;
+    const idM = query.match(new RegExp(`\\b(?:for\\s+)?${field}(?:\\s+id)?\\s+([a-f0-9]{24})\\b`, 'i'));
+    if (idM) { out[field] = [idM[1]]; continue; }
+    const quotedM = query.match(new RegExp(`\\b(?:for\\s+)?${field}(?:\\s+id)?\\s+["']([^"']+)["']`, 'i'));
+    if (quotedM) { out[field] = [quotedM[1].trim()]; continue; }
+    const tokenM = query.match(new RegExp(`\\b(?:for\\s+)?${field}(?:\\s+id)?\\s+([a-zA-Z][a-zA-Z0-9_-]*)`, 'i'));
+    if (tokenM && !ADVERTISER_STOPWORDS.test(tokenM[1])) { out[field] = [tokenM[1]]; }
   }
 
   // 3. "offer 12345" prose
@@ -659,7 +700,7 @@ export function toStatsParams(parsed: SimpleQueryInfo): any {
   }
 
   // Explicit dates win over named periods; period stays for callers that
-  // resolve it themselves (the affise_stats handler).
+  // resolve it themselves (handleStatsNL).
   if (parsed.date_from && parsed.date_to) {
     params.date_from = parsed.date_from;
     params.date_to = parsed.date_to;

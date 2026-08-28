@@ -3,7 +3,6 @@
  * and its precedence over named periods in toStatsParams().
  */
 
-import { describe, it, expect } from 'vitest';
 import { extractExplicitDateRange, extractExplicitDateRanges, parseQuery, toStatsParams } from '../../src/types/simple-parser.js';
 
 describe('extractExplicitDateRange', () => {

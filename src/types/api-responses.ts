@@ -256,6 +256,33 @@ export interface OfferSummary {
   status: string;
 }
 
+/**
+ * Slim projection of an offer carrying only the fields the offers-list
+ * widget card and the model's text summary read. Produced by
+ * `toOfferCard()` so the search payload stays under the host's inline
+ * tool-result budget (full OfferSummary entries are ~8-10 KB each). Full
+ * payout tables / landings live in `affise_get_offer`.
+ */
+export interface OfferCard {
+  id?: number;
+  offer_id?: string;
+  title?: string;
+  advertiser?: string;
+  status?: string;
+  privacy?: string;
+  countries?: string[];
+  categories?: string[];
+  full_categories?: Array<{ id?: number; title?: string }>;
+  cr?: number;
+  epc?: number;
+  revenue?: number;
+  currency?: string;
+  is_top?: boolean;
+  required_approval?: boolean;
+  payments?: Array<{ revenue?: unknown; currency?: unknown; type?: unknown }>;
+  partner_payments?: Array<{ revenue?: unknown; currency?: unknown; type?: unknown }>;
+}
+
 export interface ParsedQuery {
   original: string;
   structured_filters: Record<string, unknown>;
@@ -277,7 +304,7 @@ export interface CacheInfo {
 
 // Search responses - Updated for unified system compatibility  
 export interface OfferSearchResponse extends BaseApiResponse {
-  offers?: OfferSummary[];
+  offers?: OfferCard[];
   total_found?: number;
   has_more_results?: boolean; // Added for pagination
   query_parsed?: unknown; // Parsed query information (varies by implementation)

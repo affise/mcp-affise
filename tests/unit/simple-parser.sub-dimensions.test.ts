@@ -1,10 +1,11 @@
 /**
  * Tests for sub-ID dimension extraction in the NL parser.
  *
- * Sub-IDs (sub1..sub30) are recognized as slice dimensions when prefixed
- * with an explicit marker: "by subN", "breakdown by subN", "top N by subM",
- * "top N subM". Bare `subN` is NOT recognized as a dimension because that's
- * the filter key=value form (handled separately by extractFilters).
+ * Sub-IDs (sub1..sub30) are recognized as slice dimensions on ANY bare mention
+ * in prose — "by subN", "breakdown by subN", "top N subM", or just
+ * "sub2 stats for partner 325". No marker prefix is required. The one exception
+ * is the key=value FILTER form (`subN=value` / `subN:value`), which is handled
+ * by extractFilters and must NOT become a dimension.
  *
  * The Affise endpoint accepts sub1..sub30 as slice/order values; filter is
  * capped at sub8 (per Filter.php).
@@ -63,6 +64,65 @@ describe('simple-parser — sub-ID dimensions', () => {
     it('extracts sub7 from "breakdown by sub7 last 30 days"', () => {
       const parsed = parseQuery('breakdown by sub7 last 30 days');
       expect(parsed.dimensions).toContain('sub7');
+    });
+  });
+
+  describe('bare subN in prose (no marker) IS a dimension', () => {
+    it('extracts sub2 from "sub2 stats for partner 325"', () => {
+      const parsed = parseQuery('sub2 stats for partner 325');
+      expect(parsed.dimensions).toContain('sub2');
+    });
+
+    it('extracts sub2 from "statistics on sub2 for partner 325"', () => {
+      const parsed = parseQuery('statistics on sub2 for partner 325');
+      expect(parsed.dimensions).toContain('sub2');
+    });
+  });
+
+  describe('regression: sub2 + partner filter (reported bug)', () => {
+    // "by sub2 partner 325" — the greedy byGroupRegex used to pull `partner`
+    // into the slice as an `affiliate` dimension, so the client saw a
+    // day+affiliate breakdown instead of a sub2 breakdown for partner 325.
+    it('"by sub2 partner 325" → slice=[sub2], filter partner=325, no affiliate', () => {
+      const parsed = parseQuery('by sub2 partner 325 last week');
+      const params = toStatsParams(parsed);
+      expect(params.slice).toContain('sub2');
+      expect(params.slice).not.toContain('affiliate');
+      expect(params.partner).toEqual(['325']);
+    });
+
+    it('"sub2 stats for partner 325" → slice=[sub2], filter partner=325', () => {
+      const parsed = parseQuery('sub2 stats for partner 325 last week');
+      const params = toStatsParams(parsed);
+      expect(params.slice).toContain('sub2');
+      expect(params.slice).not.toContain('affiliate');
+      expect(params.partner).toEqual(['325']);
+    });
+
+    it('"by country and sub2 for partner 325" keeps both dims + filter', () => {
+      const parsed = parseQuery('by country and sub2 for partner 325 last week');
+      const params = toStatsParams(parsed);
+      expect(params.slice).toContain('country');
+      expect(params.slice).toContain('sub2');
+      expect(params.partner).toEqual(['325']);
+    });
+
+    it('explicit "by partner" still yields an affiliate slice (not treated as filter)', () => {
+      // "by partner 325 sub2" — user literally asked to slice by partner, so
+      // affiliate stays; sub2 is added; 325 is still captured as a filter.
+      const parsed = parseQuery('by partner 325 sub2 last week');
+      const params = toStatsParams(parsed);
+      expect(params.slice).toContain('affiliate');
+      expect(params.slice).toContain('sub2');
+      expect(params.partner).toEqual(['325']);
+    });
+  });
+
+  describe('regression: multi-entity slices are not broken by the filter boundary', () => {
+    it('"by affiliate and offer" keeps both slice dimensions', () => {
+      const parsed = parseQuery('stats by affiliate and offer last week');
+      expect(parsed.dimensions).toContain('affiliate');
+      expect(parsed.dimensions).toContain('offer');
     });
   });
 
