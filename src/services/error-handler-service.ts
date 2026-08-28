@@ -17,6 +17,7 @@ export type ErrorCode =
   | 'ADVERTISER_LOOKUP_ERROR'
   | 'RETENTION_ERROR'
   | 'TIME_TO_ACTION_ERROR'
+  | 'AFFILIATE_ANALYSIS_ERROR'
   | 'CONVERSION_LOOKUP_ERROR'
   | 'PARTNER_API_ERROR'
   | 'NETWORK_ERROR'
@@ -268,7 +269,7 @@ export class ErrorHandlerService {
 
       // URLs with credentials
       /https?:\/\/[^@\s]+:[^@\s]+@[^\s]+/gi,
-      
+
       // File paths (potentially expose system info)
       /\/[a-zA-Z0-9_\-\. \/]+\.(js|ts|json|env)/gi,
       
@@ -287,12 +288,11 @@ export class ErrorHandlerService {
       // Phone numbers — a plausible phone SHAPE only: an international
       // `+` form, or a separated 3-3-4 group. The old `\+?[1-9]\d{1,14}`
       // matched every bare 2-16 digit number, so it redacted affiliate ids
-      // ("Ambiguous partner: id=325" → "id=[REDACTED]"), row counts, dates
-      // ("2026-07-08" → "[REDACTED]-07-08") and the digits inside our own
-      // guidance ("last 30 days" → "last [REDACTED] days").
+      // ("Ambiguous partner: id=325" → "id=[REDACTED]"), row counts and the
+      // digits inside our own guidance ("last 30 days" → "last [REDACTED] days").
       /\+\d[\d\s().-]{6,}\d(\s*x\d+)?/g,
       /\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b(\s*x\d+)?/g,
-      
+
       // Stack trace file paths
       /at\s+.*?\s+\([^)]*\)/gi,
       

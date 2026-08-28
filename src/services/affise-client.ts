@@ -12,6 +12,52 @@ export interface AffiseClientConfig {
   timeout?: number;
 }
 
+/**
+ * Affise role inferred from `user.type` on /3.1/user/me. Used by the Tier
+ * 3.4 startup-time tools/list filter so an MCP deployment with a partner
+ * key automatically hides the admin-only tools — without the operator
+ * setting AFFISE_ROLE by hand.
+ *
+ * `permissions` looks like the same shape across all roles — same key
+ * set, different values inside — so it's NOT a reliable discriminator.
+ * `user.type` is.
+ */
+export type AffiseRole = 'admin' | 'partner' | 'advertiser' | 'unknown';
+
+/**
+ * Map Affise's `user.type` string to our role taxonomy.
+ *
+ * Vocabulary of Affise user types:
+ *   affiliate          → partner (publisher)
+ *   advertiser         → advertiser (its own role, NOT admin)
+ *   affiliate_manager  → admin
+ *   account_manager    → admin
+ *   common_manager     → admin
+ *   client             → admin (tenant owner)
+ *   root               → admin (super-admin)
+ *
+ * Explicit whitelist over a catch-all so that a future user type added
+ * upstream won't be silently mis-classified as admin. Anything
+ * outside the known set falls back to 'unknown' → caller registers all
+ * tools (the default behaviour).
+ *
+ * Real values observed against a live tenant:
+ *   admin   key → user.type = "common_manager"
+ *   partner key → user.type = "affiliate"
+ */
+export function deriveRole(type?: string): AffiseRole {
+  switch (type) {
+    case 'affiliate':         return 'partner';
+    case 'advertiser':        return 'advertiser';
+    case 'affiliate_manager':
+    case 'account_manager':
+    case 'common_manager':
+    case 'client':
+    case 'root':              return 'admin';
+    default:                  return 'unknown';
+  }
+}
+
 export interface AffiseUser {
   id: string;
   email: string;
@@ -19,6 +65,8 @@ export interface AffiseUser {
   last_name?: string;
   type?: string;
   roles?: string[];
+  /** Derived from `type` via deriveRole() — never sent over the wire by Affise. */
+  detectedRole: AffiseRole;
 }
 
 export interface AffiseResponse<T = any> {
@@ -80,7 +128,8 @@ export class AffiseClient {
         first_name: data.user.first_name || data.user.firstName,
         last_name: data.user.last_name || data.user.lastName,
         type: data.user.type,
-        roles: data.user.roles
+        roles: data.user.roles,
+        detectedRole: deriveRole(data.user.type),
       };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -91,15 +140,17 @@ export class AffiseClient {
         }
 
         if (axiosError.code === 'ECONNREFUSED') {
-          throw new Error('Cannot connect to Affise API server');
+          throw new Error('Cannot reach that Affise URL — the server refused the connection. Double-check the URL is reachable from the public internet.');
         }
 
         if (axiosError.code === 'ETIMEDOUT') {
-          throw new Error('Connection to Affise API timed out');
+          throw new Error('Connection to Affise timed out. The server is reachable but did not respond — try again, or check your tenant status.');
         }
 
         if (axiosError.code === 'ENOTFOUND') {
-          throw new Error('Affise API server not found (DNS error)');
+          throw new Error(
+            "We couldn't find that Affise URL. Check for typos and that it's your tenant's public API URL (e.g. https://api-company.affise.com) — internal-network URLs won't resolve from here.",
+          );
         }
 
         throw new Error(`Affise API error: ${axiosError.message}`);
