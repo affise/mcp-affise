@@ -132,7 +132,7 @@ export async function getOfferCategories(
     } else if (error.code === 'ETIMEDOUT') {
       errorMessage = 'Request timeout exceeded';
     } else if (error.code === 'ENOTFOUND') {
-      errorMessage = 'Affise server not found (DNS error)';
+      errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
     } else if (error.response) {
       errorMessage = error.response.data?.message || error.message;
     } else {

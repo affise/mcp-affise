@@ -13,7 +13,7 @@
 
 import axios from 'axios';
 import { getCurrentTimestamp } from '../shared/date-utils.js';
-import { compactTabular } from '../utils/compact-response.js';
+import { compactTabular, redactKeys } from '../utils/compact-response.js';
 
 const MONGO_ID_RE = /^[a-f0-9]{24}$/i;
 const ALLOWED_ORDER = new Set(['id', 'email', 'title', 'created_at', 'updated_at']);
@@ -83,9 +83,16 @@ export async function listAdvertisers(
     const advertisers: any[] = Array.isArray(data?.advertisers) ? data.advertisers : [];
     const pagination = data?.pagination || {};
 
+    // Strip secrets + heavy/low-value fields before flattening — advertisers
+    // (and nested manager) carry `api_key`, which must never reach the model
+    // context or widget. Mirrors the list_partners sanitisation.
+    const sanitized = redactKeys(advertisers, [
+      'api_key', 'customFields', 'payment_systems',
+      'notes', 'tipalti_idap', 'avatar', 'skype', 'roles',
+    ]);
     // Compact tabular: flatten + drop empty columns + report drops.
     // compactTabular detects {data: [...]} + pagination shape.
-    const compactedData = compactTabular({ data: advertisers, pagination });
+    const compactedData = compactTabular({ data: sanitized, pagination });
 
     return {
       status: 'ok',
@@ -202,7 +209,7 @@ function mapNetworkError(error: any, label: string) {
   let errorMessage: string;
   if (error.code === 'ECONNREFUSED') errorMessage = 'Unable to connect to Affise server';
   else if (error.code === 'ETIMEDOUT') errorMessage = `${label} request timeout exceeded`;
-  else if (error.code === 'ENOTFOUND') errorMessage = 'Affise server not found (DNS error)';
+  else if (error.code === 'ENOTFOUND') errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
   else if (error.response) {
     const s = error.response.status;
     const apiErr = error.response.data?.error;

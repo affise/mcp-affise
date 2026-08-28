@@ -100,7 +100,7 @@ function mapNetworkError(error: any) {
   let errorMessage: string;
   if (error.code === 'ECONNREFUSED') errorMessage = 'Unable to connect to Affise server';
   else if (error.code === 'ETIMEDOUT') errorMessage = 'Offer detail request timeout exceeded';
-  else if (error.code === 'ENOTFOUND') errorMessage = 'Affise server not found (DNS error)';
+  else if (error.code === 'ENOTFOUND') errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
   else if (error.response) {
     const s = error.response.status;
     const apiErr = error.response.data?.error;

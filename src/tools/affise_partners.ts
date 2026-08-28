@@ -10,7 +10,7 @@
 
 import axios from 'axios';
 import { getCurrentTimestamp } from '../shared/date-utils.js';
-import { compactTabular } from '../utils/compact-response.js';
+import { compactTabular, redactKeys } from '../utils/compact-response.js';
 
 export interface ListPartnersParams {
   search?: string;
@@ -71,10 +71,21 @@ export async function listPartners(
     const partners: any[] = Array.isArray(data?.partners) ? data.partners : [];
     const pagination = data?.pagination || {};
 
+    // Strip secrets + heavy/low-value fields before flattening. Critically,
+    // partners (and their nested `manager`) carry an `api_key` — never expose
+    // it through a list payload that lands in the model context + widget.
+    // customFields / payment_systems / avatar / etc. are bulky and useless in
+    // a list overview; dropping them keeps the result under the host's inline
+    // budget (full payload is ~91 KB / 34 cols → the stats-grid widget's
+    // tool-result gets offloaded and renders empty).
+    const sanitized = redactKeys(partners, [
+      'api_key', 'customFields', 'payment_systems',
+      'notes', 'tipalti_idap', 'avatar', 'skype', 'roles',
+    ]);
     // Compact tabular: flatten nested fields (manager.title, etc.), drop
     // empty columns, report drops. compactTabular detects {data: [...]} +
     // pagination shape, so we wrap the partners array under `data`.
-    const compactedData = compactTabular({ data: partners, pagination });
+    const compactedData = compactTabular({ data: sanitized, pagination });
 
     return {
       status: 'ok',
@@ -191,7 +202,7 @@ function mapNetworkError(error: any, label: string) {
   let errorMessage: string;
   if (error.code === 'ECONNREFUSED') errorMessage = 'Unable to connect to Affise server';
   else if (error.code === 'ETIMEDOUT') errorMessage = `${label} request timeout exceeded`;
-  else if (error.code === 'ENOTFOUND') errorMessage = 'Affise server not found (DNS error)';
+  else if (error.code === 'ENOTFOUND') errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
   else if (error.response) {
     const s = error.response.status;
     const apiErr = error.response.data?.error;

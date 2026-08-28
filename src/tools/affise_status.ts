@@ -40,11 +40,11 @@ export async function createAffiseStatusTool(config: { baseUrl: string; apiKey: 
     let statusCode: number | undefined;
 
     if (error.code === 'ECONNREFUSED') {
-      errorMessage = 'Unable to connect to server (connection refused)';
+      errorMessage = "Couldn't reach the Affise URL — the server refused the connection";
     } else if (error.code === 'ETIMEDOUT') {
-      errorMessage = 'Connection timeout exceeded';
+      errorMessage = 'The Affise server did not respond in time';
     } else if (error.code === 'ENOTFOUND') {
-      errorMessage = 'Server not found (DNS error)';
+      errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
     } else if (error.response) {
       errorMessage = error.response.data?.message || error.message;
       statusCode = error.response.status;
