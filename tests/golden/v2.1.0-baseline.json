@@ -1,0 +1,1989 @@
+{
+  "_meta": {
+    "captured_at": "2026-08-28",
+    "git_commit": "a19de8f535ccc291a0f87bce2e74cb8cc002ef56",
+    "notes": [
+      "resources/list returned JSON-RPC error -32601 (Method not found); the server declares no resources capability, so resources is [] by absence, not by empty listing.",
+      "serverInfo.version reports 2.0.0 while package.json is 2.1.0 (hardcoded in source).",
+      "Keys are deep-sorted alphabetically; tools/prompts sorted by name. JSON Schema required[] arrays are left in source order.",
+      "Two identifiers were replaced after capture: a real-looking affiliate login and a real advertiser MongoId, both of which appeared in user-visible tool descriptions in the published 2.1.0 surface. They now read as the standard placeholders. This file is a regression aid, not an archive - the authoritative record of what 2.1.0 shipped is the published npm tarball. Carrying customer identifiers into a public repository to preserve fixture purity is not a trade worth making."
+    ],
+    "package_version": "2.1.0",
+    "request_protocol_version": "2025-06-18",
+    "source_repo": "affise/mcp-affise",
+    "transport": "stdio"
+  },
+  "initialize": {
+    "capabilities": {
+      "prompts": {},
+      "tools": {}
+    },
+    "protocolVersion": "2025-06-18",
+    "serverInfo": {
+      "name": "affise-mcp-server",
+      "version": "2.0.0"
+    }
+  },
+  "prompts": [
+    {
+      "arguments": [
+        {
+          "description": "JSON of conversions data (typically from affise_conversions_raw result.data)",
+          "name": "conversions_data",
+          "required": true
+        },
+        {
+          "description": "Lens: comprehensive | fraud_review | attribution | partner_quality | geo_tech | payouts (default: comprehensive)",
+          "name": "analysis_type",
+          "required": false
+        },
+        {
+          "description": "Array of focus areas (e.g. [\"sub5 quality\", \"TR traffic\", \"decline reasons\"])",
+          "name": "focus_areas",
+          "required": false
+        },
+        {
+          "description": "Criteria for side-by-side comparison (e.g. \"partners 3554 vs 4108\", \"this week vs last week\")",
+          "name": "comparison_criteria",
+          "required": false
+        },
+        {
+          "description": "Output format: summary | detailed | actionable (default: detailed)",
+          "name": "format",
+          "required": false
+        }
+      ],
+      "description": "Analyze raw Affise conversion records (output of affise_conversions_raw) — fraud review, attribution paths, partner quality, geo/tech breakdowns, payouts. Use this after fetching conversions to get an expert lens on per-event data.",
+      "name": "analyze_conversions"
+    },
+    {
+      "arguments": [
+        {
+          "description": "JSON offers data for analysis",
+          "name": "offers_data",
+          "required": true
+        },
+        {
+          "description": "Analysis type: comprehensive, performance, market, technical, competitive, compliance",
+          "name": "analysis_type",
+          "required": false
+        },
+        {
+          "description": "Array of focus areas",
+          "name": "focus_areas",
+          "required": false
+        },
+        {
+          "description": "Criteria for comparing offers",
+          "name": "comparison_criteria",
+          "required": false
+        },
+        {
+          "description": "Output format: summary, detailed, actionable",
+          "name": "format",
+          "required": false
+        }
+      ],
+      "description": "Analyze Affise offers data with expert recommendations",
+      "name": "analyze_offers"
+    },
+    {
+      "arguments": [
+        {
+          "description": "Array of data slicing options",
+          "name": "slice",
+          "required": false
+        },
+        {
+          "description": "Start date (YYYY-MM-DD format)",
+          "name": "date_from",
+          "required": false
+        },
+        {
+          "description": "End date (YYYY-MM-DD format)",
+          "name": "date_to",
+          "required": false
+        },
+        {
+          "description": "Quick date range",
+          "name": "period",
+          "required": false
+        },
+        {
+          "description": "Array of metrics to include",
+          "name": "fields",
+          "required": false
+        },
+        {
+          "description": "Array of currency codes",
+          "name": "currency",
+          "required": false
+        },
+        {
+          "description": "Array of country codes",
+          "name": "country",
+          "required": false
+        },
+        {
+          "description": "Array of offer IDs",
+          "name": "offer",
+          "required": false
+        },
+        {
+          "description": "Array of advertiser IDs",
+          "name": "advertiser",
+          "required": false
+        },
+        {
+          "description": "Timezone",
+          "name": "timezone",
+          "required": false
+        },
+        {
+          "description": "Maximum number of records",
+          "name": "limit",
+          "required": false
+        },
+        {
+          "description": "Quick preset",
+          "name": "preset",
+          "required": false
+        },
+        {
+          "description": "Analysis type",
+          "name": "analysis_type",
+          "required": false
+        },
+        {
+          "description": "Array of specific metrics to focus on",
+          "name": "focus_metrics",
+          "required": false
+        },
+        {
+          "description": "Period to compare against",
+          "name": "comparison_period",
+          "required": false
+        },
+        {
+          "description": "Output format",
+          "name": "format",
+          "required": false
+        },
+        {
+          "description": "KPI targets object",
+          "name": "kpi_targets",
+          "required": false
+        }
+      ],
+      "description": "Analyze Affise statistics data with comprehensive performance insights",
+      "name": "analyze_stats"
+    },
+    {
+      "arguments": [
+        {
+          "description": "JSON trafficback data for analysis",
+          "name": "trafficback_data",
+          "required": true
+        },
+        {
+          "description": "Analysis type: comprehensive, geo, reason, partner, advertiser, technical, goal",
+          "name": "analysis_type",
+          "required": false
+        },
+        {
+          "description": "Array of focus areas (e.g., [\"geo_issues\", \"device_targeting\", \"partner_quality\"])",
+          "name": "focus_areas",
+          "required": false
+        },
+        {
+          "description": "Criteria for comparing trafficback patterns",
+          "name": "comparison_criteria",
+          "required": false
+        },
+        {
+          "description": "Output format: summary, detailed, actionable",
+          "name": "format",
+          "required": false
+        }
+      ],
+      "description": "Analyze Affise trafficback data with expert insights and optimization recommendations",
+      "name": "analyze_trafficback"
+    },
+    {
+      "arguments": [
+        {
+          "description": "Data type: offers, stats, trafficback, combined (default: offers)",
+          "name": "data_type",
+          "required": false
+        },
+        {
+          "description": "Search query for offers",
+          "name": "search_query",
+          "required": false
+        },
+        {
+          "description": "Array of country codes for offer filtering",
+          "name": "offer_countries",
+          "required": false
+        },
+        {
+          "description": "Array of offer statuses (default: [\"active\"])",
+          "name": "offer_status",
+          "required": false
+        },
+        {
+          "description": "Array of offer categories",
+          "name": "offer_categories",
+          "required": false
+        },
+        {
+          "description": "Array of stats slicing dimensions (e.g., [\"day\", \"country\", \"offer\"])",
+          "name": "slice",
+          "required": false
+        },
+        {
+          "description": "Start date for stats (YYYY-MM-DD)",
+          "name": "date_from",
+          "required": false
+        },
+        {
+          "description": "End date for stats (YYYY-MM-DD)",
+          "name": "date_to",
+          "required": false
+        },
+        {
+          "description": "Quick date range: today, yesterday, last7days, last30days, thismonth, lastmonth",
+          "name": "period",
+          "required": false
+        },
+        {
+          "description": "Array of stats metrics (e.g., [\"views\", \"clicks\", \"conversions\", \"earnings\"])",
+          "name": "stats_fields",
+          "required": false
+        },
+        {
+          "description": "Array of conversion types: total, confirmed, pending, declined",
+          "name": "conversionTypes",
+          "required": false
+        },
+        {
+          "description": "Array of currency codes",
+          "name": "currency",
+          "required": false
+        },
+        {
+          "description": "Array of advertiser IDs",
+          "name": "advertiser",
+          "required": false
+        },
+        {
+          "description": "Array of affiliate IDs",
+          "name": "affiliate",
+          "required": false
+        },
+        {
+          "description": "Array of offer IDs for stats filtering",
+          "name": "offer",
+          "required": false
+        },
+        {
+          "description": "Array of country codes for stats filtering",
+          "name": "country",
+          "required": false
+        },
+        {
+          "description": "Array of operating systems",
+          "name": "os",
+          "required": false
+        },
+        {
+          "description": "Array of device types",
+          "name": "device",
+          "required": false
+        },
+        {
+          "description": "Array of browser types",
+          "name": "browser",
+          "required": false
+        },
+        {
+          "description": "Array of sub1 tracking values",
+          "name": "sub1",
+          "required": false
+        },
+        {
+          "description": "Array of sub2 tracking values",
+          "name": "sub2",
+          "required": false
+        },
+        {
+          "description": "Array of sub3 tracking values",
+          "name": "sub3",
+          "required": false
+        },
+        {
+          "description": "Array of sub4 tracking values",
+          "name": "sub4",
+          "required": false
+        },
+        {
+          "description": "Array of sub5 tracking values",
+          "name": "sub5",
+          "required": false
+        },
+        {
+          "description": "Array of sub6 tracking values",
+          "name": "sub6",
+          "required": false
+        },
+        {
+          "description": "Array of sub7 tracking values",
+          "name": "sub7",
+          "required": false
+        },
+        {
+          "description": "Array of sub8 tracking values",
+          "name": "sub8",
+          "required": false
+        },
+        {
+          "description": "Non-zero conversions only (0 or 1)",
+          "name": "nonzero",
+          "required": false
+        },
+        {
+          "description": "Stats preset: monthlyByOffer, performanceByCountry, funnelAnalysis, etc.",
+          "name": "preset",
+          "required": false
+        },
+        {
+          "description": "Array of countries for trafficback analysis",
+          "name": "trafficback_countries",
+          "required": false
+        },
+        {
+          "description": "Array of offers for trafficback analysis",
+          "name": "trafficback_offers",
+          "required": false
+        },
+        {
+          "description": "Array of devices for trafficback analysis",
+          "name": "trafficback_devices",
+          "required": false
+        },
+        {
+          "description": "Array of OS for trafficback analysis",
+          "name": "trafficback_os",
+          "required": false
+        },
+        {
+          "description": "Analysis type: comprehensive, performance, revenue, quality, geographic, technical, funnel, partner, competitive, optimization",
+          "name": "analysis_type",
+          "required": false
+        },
+        {
+          "description": "Array of focus areas for detailed analysis",
+          "name": "focus_areas",
+          "required": false
+        },
+        {
+          "description": "Output format: summary, detailed, actionable, executive",
+          "name": "format",
+          "required": false
+        },
+        {
+          "description": "Period to compare performance against",
+          "name": "comparison_period",
+          "required": false
+        },
+        {
+          "description": "KPI targets object for performance evaluation",
+          "name": "kpi_targets",
+          "required": false
+        },
+        {
+          "description": "Page number for pagination",
+          "name": "page",
+          "required": false
+        },
+        {
+          "description": "Maximum number of records to retrieve",
+          "name": "limit",
+          "required": false
+        },
+        {
+          "description": "Sort direction: asc or desc",
+          "name": "orderType",
+          "required": false
+        },
+        {
+          "description": "Timezone for data analysis",
+          "name": "timezone",
+          "required": false
+        }
+      ],
+      "description": "Enhanced auto-analysis: offers, stats, trafficback data with comprehensive insights",
+      "name": "auto_analysis"
+    },
+    {
+      "arguments": [
+        {
+          "description": "Search query for offers",
+          "name": "search_query",
+          "required": false
+        },
+        {
+          "description": "Array of country codes to filter",
+          "name": "countries",
+          "required": false
+        },
+        {
+          "description": "Array of offer statuses",
+          "name": "status",
+          "required": false
+        },
+        {
+          "description": "Type of analysis to perform",
+          "name": "analysis_type",
+          "required": false
+        },
+        {
+          "description": "Array of areas to focus analysis on",
+          "name": "focus_areas",
+          "required": false
+        }
+      ],
+      "description": "Complete workflow: search offers and analyze them step by step",
+      "name": "workflow_analysis"
+    }
+  ],
+  "resources": [],
+  "tools": [
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get raw conversion records from Affise /3.0/stats/conversions. Returns individual conversion rows (one per event) with raw fields: ip, country, ua, os, device, click_time, status, sub1..sub8, custom_field_1..15, etc. Max limit 1000. Date range ≤ 365 days (≤ 63 days in raw_export mode). Use this when you need per-conversion detail; use affise_stats_raw for aggregated metrics.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "description": "Currency ID",
+            "type": "integer"
+          },
+          "date_from": {
+            "description": "Start date YYYY-MM-DD (required)",
+            "type": "string"
+          },
+          "date_to": {
+            "description": "End date YYYY-MM-DD (required, ≤ date_from + 365 days)",
+            "type": "string"
+          },
+          "fields": {
+            "description": "Comma-separated column selector — narrow the response payload",
+            "type": "string"
+          },
+          "filter": {
+            "additionalProperties": false,
+            "description": "Filter conditions. Sub IDs capped at sub1..sub8 by Conversion.php form.",
+            "properties": {
+              "action_id": {
+                "type": "string"
+              },
+              "advertiser": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "advertiser_tag": {
+                "type": "string"
+              },
+              "affiliate_tag": {
+                "type": "string"
+              },
+              "browser": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "city": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "clickid": {
+                "type": "string"
+              },
+              "country": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "decline_reason": {
+                "type": "string"
+              },
+              "device": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "device_type": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "fraud_risk_level": {
+                "type": "string"
+              },
+              "fraud_type": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "goal": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "imp_id": {
+                "type": "string"
+              },
+              "invoice_id": {
+                "type": "string"
+              },
+              "offer": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "offer_tag": {
+                "type": "string"
+              },
+              "os": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "partner": {
+                "description": "Affiliate / partner IDs (canonical filter key — NOT `affiliate`)",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "payment_status": {
+                "type": "string"
+              },
+              "payouts_from": {
+                "type": "number"
+              },
+              "payouts_to": {
+                "type": "number"
+              },
+              "promocode": {
+                "type": "string"
+              },
+              "shave": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "smart_id": {
+                "description": "numeric ID, or \"all_smartlinks\" / \"direct_traffic\"",
+                "type": "string"
+              },
+              "sub1": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub2": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub3": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub4": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub5": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub6": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub7": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub8": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "supplier": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "user_id": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "limit": {
+            "description": "Results per page (default 100, max 1000)",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "order": {
+            "description": "Single sort field (no array)",
+            "type": "string"
+          },
+          "page": {
+            "description": "Page (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "raw_export": {
+            "description": "When 1, bypass the response mapper and return unmapped ClickHouse rows. Caps date range at 63 days.",
+            "enum": [
+              0,
+              1
+            ],
+            "type": "integer"
+          },
+          "sort": {
+            "description": "Sort direction (default desc)",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "Conversion statuses to include. \"total\" = no filter.",
+            "items": {
+              "enum": [
+                "confirmed",
+                "pending",
+                "declined",
+                "not_found",
+                "hold",
+                "total"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "time_from": {
+            "description": "Optional time bound HH:MM:SS",
+            "type": "string"
+          },
+          "time_to": {
+            "description": "Optional time bound HH:MM:SS",
+            "type": "string"
+          },
+          "timezone": {
+            "description": "IANA timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ],
+        "type": "object"
+      },
+      "name": "affise_conversions_raw"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get full detail for a single advertiser by ID (GET /3.0/admin/advertiser/{id}). Advertiser ID is a 24-char MongoId hex string (e.g. \"507f1f77bcf86cd799439011\"), NOT an integer.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "advertiser_id": {
+            "description": "24-char hex MongoId of the advertiser",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "advertiser_id"
+        ],
+        "type": "object"
+      },
+      "name": "affise_get_advertiser"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get full detail for a single conversion by its MongoId (GET /3.0/stats/conversionsbyid). Admin only. Use as drill-down from affise_conversions_raw — when a row has interesting fields and you need the complete record (offer object, all custom_field_1..15, price, etc.).",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "24-char hex MongoId of the conversion (from affise_conversions_raw row id)",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "type": "string"
+          },
+          "timezone": {
+            "description": "IANA timezone override",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "name": "affise_get_conversion"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get full detail for a single offer by ID (GET /3.0/offer/{id}). Use after affise_search_offers or when an offer_id is known from a conversion row. Returns the offer object with id, title, status, payouts, targeting, etc.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "offer_id": {
+            "description": "Offer ID",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "offer_id"
+        ],
+        "type": "object"
+      },
+      "name": "affise_get_offer"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get full detail for a single affiliate by ID (GET /3.0/admin/partner/{id}). Admin only. Use to drill down from stats slice=\"partner\" or affise_list_partners.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "partner_id": {
+            "description": "Affiliate (partner) ID",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "partner_id"
+        ],
+        "type": "object"
+      },
+      "name": "affise_get_partner"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List advertisers with pagination and filters (GET /3.0/admin/advertisers). Useful for enumerating advertisers or finding one by name. Pass with_offers=true to include offers_count per advertiser.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Filter by advertiser ID (MongoId hex)",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Results per page (default 100, max 500)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "description": "Filter by advertiser title",
+            "type": "string"
+          },
+          "order": {
+            "description": "Sort field",
+            "enum": [
+              "id",
+              "email",
+              "title",
+              "created_at",
+              "updated_at"
+            ],
+            "type": "string"
+          },
+          "orderType": {
+            "description": "Sort direction (default asc)",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "description": "Page number (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "tags": {
+            "description": "Filter by tags",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Filter by update date (YYYY-MM-DD)",
+            "type": "string"
+          },
+          "with_offers": {
+            "description": "Include offers_count per advertiser",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_list_advertisers"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List affiliates (partners) with pagination and filters (GET /3.0/admin/partners). Admin only. Useful for \"show me partners from country X with status active\" or to enumerate the affiliate roster.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Filter by specific affiliate IDs",
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "description": "Results per page (default 100, max 500)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "manager": {
+            "description": "Filter by manager user IDs",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "order": {
+            "description": "Sort field",
+            "type": "string"
+          },
+          "orderType": {
+            "description": "Sort direction",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "description": "Page number (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "search": {
+            "description": "Search by name / email",
+            "type": "string"
+          },
+          "status": {
+            "description": "Affiliate status (e.g. \"active\")",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Filter by update date (YYYY-MM-DD)",
+            "type": "string"
+          },
+          "with_balance": {
+            "description": "Include balance field",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_list_partners"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get all available offer categories from Affise",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "ids": {
+            "description": "Specific category IDs to retrieve",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "description": "Results per page (default: 100, max: 99999)",
+            "type": "number"
+          },
+          "order": {
+            "description": "Sort field (default: id)",
+            "enum": [
+              "id",
+              "title"
+            ],
+            "type": "string"
+          },
+          "orderType": {
+            "description": "Sort direction (default: asc)",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "description": "Page number (default: 1)",
+            "type": "number"
+          },
+          "search": {
+            "description": "Search term to filter categories by title",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_offer_categories"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Generate a tracking link for a specific offer + affiliate (POST /3.0/admin/offer/{offerId}/tracking-link). Admin/manager only. Validates that the affiliate is allowed to run the offer based on its privacy settings. Optional sub1..sub8 are appended to the resulting URL as query params.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "affiliate_id": {
+            "description": "Affiliate ID to generate the link for",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "offer_id": {
+            "description": "Offer ID (path parameter)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sub1": {
+            "description": "Sub parameter 1",
+            "type": "string"
+          },
+          "sub2": {
+            "description": "Sub parameter 2",
+            "type": "string"
+          },
+          "sub3": {
+            "description": "Sub parameter 3",
+            "type": "string"
+          },
+          "sub4": {
+            "description": "Sub parameter 4",
+            "type": "string"
+          },
+          "sub5": {
+            "description": "Sub parameter 5",
+            "type": "string"
+          },
+          "sub6": {
+            "description": "Sub parameter 6",
+            "type": "string"
+          },
+          "sub7": {
+            "description": "Sub parameter 7",
+            "type": "string"
+          },
+          "sub8": {
+            "description": "Sub parameter 8",
+            "type": "string"
+          }
+        },
+        "required": [
+          "offer_id",
+          "affiliate_id"
+        ],
+        "type": "object"
+      },
+      "name": "affise_offer_tracking_link"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get the authenticated partner's multi-currency balance (GET /3.0/balance). Returns balance keyed by type (withdrawal, pending, ...) and currency (USD, EUR, ...). REQUIRES a partner API key.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "affise_partner_balance"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Discover distinct sub values in the partner's own data (GET /3.0/stats/find-subs). Pick ONE sub key (sub1..sub5) to query — backend ignores all but the first. Use this for exploratory analytics: \"what sub3 values do I have\" → then drill via affise_stats_raw with the discovered values. REQUIRES a partner API key.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "Per page (default 100, max 500)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sub_key": {
+            "description": "Which sub field to enumerate (required, one of sub1..sub5)",
+            "enum": [
+              "sub1",
+              "sub2",
+              "sub3",
+              "sub4",
+              "sub5"
+            ],
+            "type": "string"
+          },
+          "sub_value": {
+            "description": "Optional partial-value filter; empty returns top-N distinct values",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sub_key"
+        ],
+        "type": "object"
+      },
+      "name": "affise_partner_find_subs"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List offers the authenticated partner is CURRENTLY RUNNING (GET /3.0/partner/live-offers). Same filter shape as affise_partner_offers but scoped to active connections — usually a small portfolio, but use `search` / `countries` / `categories` filters if the partner has many active offers. REQUIRES a partner API key.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "caps_country": {
+            "description": "Caps filter country",
+            "type": "string"
+          },
+          "caps_type": {
+            "description": "Caps filter type",
+            "type": "string"
+          },
+          "categories": {
+            "description": "Category IDs",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "countries": {
+            "description": "ISO country codes",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "from": {
+            "description": "Start date YYYY-MM-DD",
+            "type": "string"
+          },
+          "int_id": {
+            "description": "Specific offer IDs",
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "description": "Per page (default 100, max 500)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "privacy": {
+            "description": "Privacy filters",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "search": {
+            "description": "Search query (server param `q`)",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Sort field",
+            "type": "string"
+          },
+          "to": {
+            "description": "End date YYYY-MM-DD",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Filter by update date YYYY-MM-DD",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_partner_live_offers"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List platform announcements visible to the partner (GET /3.0/news). Uses skip/limit pagination (NOT page). Pass fixed=true for pinned items only. REQUIRES a partner API key. A 404 from the API is normalised to an empty list. Embedded base64 images in news bodies are replaced with `[IMAGE]` markers BY DEFAULT (saves multi-MB of token-window bloat) — pass `strip_images=false` to keep raw image bytes.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "fixed": {
+            "description": "When true, only return pinned items",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Items per page (server default applied if omitted)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "skip": {
+            "description": "Offset (default 0)",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "strip_images": {
+            "description": "Replace base64 images with `[IMAGE]` markers. DEFAULT TRUE. Pass false only if you actually need raw image bytes.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_partner_news"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "List offers AVAILABLE to the authenticated partner (GET /3.0/partner/offers) — i.e. offers the partner can request access to. REQUIRES a partner API key. Use affise_partner_live_offers for the partner's currently-running offers. NOTE: the available catalog can be very large (100K+ on big tenants); always narrow with `search`, `countries`, `categories`, or `int_id` filters before increasing `limit`. Default limit is 100, max 500.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "caps_country": {
+            "description": "Caps filter country",
+            "type": "string"
+          },
+          "caps_type": {
+            "description": "Caps filter type",
+            "type": "string"
+          },
+          "categories": {
+            "description": "Category IDs",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "countries": {
+            "description": "ISO country codes",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "from": {
+            "description": "Start date YYYY-MM-DD",
+            "type": "string"
+          },
+          "int_id": {
+            "description": "Specific offer IDs",
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "description": "Per page (default 100, max 500)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "privacy": {
+            "description": "Privacy filters",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "search": {
+            "description": "Search query (server param `q`)",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Sort field",
+            "type": "string"
+          },
+          "to": {
+            "description": "End date YYYY-MM-DD",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Filter by update date YYYY-MM-DD",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_partner_offers"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get the authenticated partner's own profile (GET /3.1/partner/me). Returns id, email, manager, permissions, balance summary, theme. REQUIRES a partner (affiliate) API key — admin keys return 403.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "affise_partner_profile"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Retention rate / cohort analysis for a specific offer (GET /3.0/stats/retentionrate). For a given base_event (goal name), returns retention buckets across follow-up events. Admin only. All of date_from, date_to, offer_id, base_event, events are REQUIRED. Use this when /stats/custom cannot answer cohort-style retention questions. Event names must match goals configured on the offer.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "affiliate_id": {
+            "description": "Restrict to a single affiliate",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "base_event": {
+            "description": "Base goal name to anchor the cohort (required). Must start with a letter.",
+            "pattern": "^[a-zA-Z].*",
+            "type": "string"
+          },
+          "date_from": {
+            "description": "Start date YYYY-MM-DD (required)",
+            "type": "string"
+          },
+          "date_to": {
+            "description": "End date YYYY-MM-DD (required)",
+            "type": "string"
+          },
+          "describe": {
+            "description": "Include human-readable description in response",
+            "type": "boolean"
+          },
+          "events": {
+            "description": "Follow-up event names to track (required, non-empty array). Each must start with a letter.",
+            "items": {
+              "pattern": "^[a-zA-Z].*",
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "limit": {
+            "description": "Per page (default 100, max 100)",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "offer_id": {
+            "description": "Offer ID (required)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page (default 1)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "timezone": {
+            "description": "IANA timezone (default Europe/Moscow)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "offer_id",
+          "base_event",
+          "events"
+        ],
+        "type": "object"
+      },
+      "name": "affise_retention_rate"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Search offers with natural language (IMPROVED VERSION) - Supports complex queries like \"Find gaming offers for US mobile traffic\", \"Show me dating offers\", \"Search for finance offers in UK\"",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Natural language search query with automatic category resolution and country detection",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "affise_search_offers"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Intelligent offer search with automatic category resolution and suggestions",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "auto_correct": {
+            "description": "Enable automatic category name correction (default: true)",
+            "type": "boolean"
+          },
+          "categories": {
+            "description": "Category names or IDs to search in",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "countries": {
+            "description": "Country codes to filter",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "query": {
+            "description": "Natural language search query (e.g., \"Find gaming offers for mobile traffic\")",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "affise_smart_search"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get statistics with natural language (e.g., \"Show me revenue by country last month\", \"top 10 offers by income last week\", \"cost dynamics by affiliate and sub1\"). ENGLISH ONLY — translate non-English asks first, and write dates as ISO YYYY-MM-DD (named month phrases like \"1-7 July\" are NOT parsed). Supports: by/breakdown by <dim> [and <dim>, ...]; \"dynamics\"/\"over time\"/\"trend\" auto-adds `day` to slice; \"top N <dim> by <metric>\" sets limit + sort. Partner names like \"aff_demo\" are auto-resolved to numeric affiliate_id via /3.0/admin/partners — no need to look up first. A date or period is REQUIRED — there is no implicit default, and a query without one is rejected. Time periods: today/yesterday/last week/this month/last 30 days, a single day (\"2026-07-28\", \"28.07.2026\"), or an explicit \"from YYYY-MM-DD to YYYY-MM-DD\". MULTIPLE explicit ISO ranges in one ask (\"from 2026-07-01 to 2026-07-07 and from 2026-07-08 to 2026-07-14\") run one pull per range → data.multi_period with a periods[] array (max 6 ranges). Cost / charge / spend → `income` field (admin-only `costs` is gated — use affise_stats_raw for that). Max date range 6 months.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "description": "Natural language stats query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "name": "affise_stats"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Raw stats via Affise /3.0/stats/custom. CRITICAL rules:\n1. Filter ID types differ. The MCP server auto-resolves names → IDs for you:\n   - `filter.partner` / `affiliate` — NUMERIC affiliate_id (e.g. 394). Pass a clientId like \"aff_demo\" and we resolve via /3.0/admin/partners.\n   - `filter.offer` — NUMERIC offer_id (e.g. 12345). Resolve names via affise_search_offers.\n   - `filter.advertiser` / `supplier` — 24-char hex MongoID (e.g. \"507f1f77bcf86cd799439011\"). Pass a name like \"Acme Corp\" and we resolve via /3.0/admin/advertisers.\n2. `order[]` vocabulary DIFFERS from `fields[]` — sort keys are: total_revenue, total_count, total_null, raw, uniq, confirmed_earning, confirmed_count, confirmed_revenue, pending_count, pending_revenue, declined_count, declined_revenue, hold_count, hold_revenue (+admin: advertiser, affiliate, manager). NOT field names like \"income\" or \"clicks\".\n3. Sort direction via `orderType` (\"asc\"|\"desc\"). DO NOT prefix order values with \"-\".\n4. Date range ≤ 6 months. Date format YYYY-MM-DD.\n5. Sub cap: filter accepts sub1..sub8 only; slice/order accept sub1..sub30.\nAdmin-only fields (`costs`/`margin`/`roi`) silently dropped for non-admin. `costs` is also incompatible with os/sub*/geo slices server-side. Full reference: docs/affise-stats-custom-reference.md.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "conversionTypes": {
+            "description": "Conversion status types to include",
+            "items": {
+              "enum": [
+                "total",
+                "confirmed",
+                "pending",
+                "declined",
+                "hold"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "date_from": {
+            "description": "Start date (YYYY-MM-DD)",
+            "type": "string"
+          },
+          "date_to": {
+            "description": "End date (YYYY-MM-DD). Range must be ≤ 6 months.",
+            "type": "string"
+          },
+          "fields": {
+            "description": "Metrics to include, matching Affise CustomStat::getGoApiFields() (what /3.0/stats/custom accepts). Base fields (always available): clicks, hosts, earnings, income, noincome, payouts, conversions, cr, affiliate_epc, ratio, epc, trafficback, afprice. Tenant-gated: `ctr`/`views`/`ecpm` require the impressions feature flag; `costs`/`margin`/`roi` require the ad-costs flag (admin-only). A gated field on a tenant without the flag is rejected/dropped server-side. Note: `clicks_earnings`/`clicks_income` belong to the legacy export endpoint and are NOT valid here.",
+            "items": {
+              "enum": [
+                "clicks",
+                "hosts",
+                "earnings",
+                "income",
+                "noincome",
+                "payouts",
+                "conversions",
+                "cr",
+                "affiliate_epc",
+                "ratio",
+                "epc",
+                "trafficback",
+                "afprice",
+                "ctr",
+                "views",
+                "ecpm",
+                "costs",
+                "margin",
+                "roi"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "filter": {
+            "additionalProperties": false,
+            "description": "Filter conditions (Filter.php form). offer takes number[]. sub1..sub8 only; sub9..sub30 are NOT filterable.",
+            "properties": {
+              "advertiser": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "advertiser_manager_id": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "advertiser_tag": {
+                "type": "string"
+              },
+              "affiliate_manager_id": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "affiliate_tag": {
+                "type": "string"
+              },
+              "balance_type": {
+                "type": "string"
+              },
+              "city": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "country": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "currency": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "device": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "goal": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "manager": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "nonzero": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "offer": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "offer_tag": {
+                "type": "string"
+              },
+              "os": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "partner": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "payment_status": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "shave": {
+                "enum": [
+                  0,
+                  1
+                ],
+                "type": "integer"
+              },
+              "smart_id": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub1": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub2": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub3": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub4": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub5": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub6": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub7": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sub8": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "subaccount_id": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "supplier": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "limit": {
+            "description": "Results per page (default: 100, max: 500)",
+            "type": "number"
+          },
+          "locale": {
+            "description": "Response language",
+            "enum": [
+              "en",
+              "ru",
+              "es",
+              "pt",
+              "cn"
+            ],
+            "type": "string"
+          },
+          "order": {
+            "description": "Fields to sort by. Prefix with \"-\" for DESC, e.g. [\"-clicks\", \"country\"] = clicks DESC then country ASC.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "orderType": {
+            "description": "Sort direction (legacy; per-field \"-\" prefix in `order` is preferred)",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "description": "Page number (Affise default 0; this server defaults to 1 for backward compat)",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "period": {
+            "description": "Quick period (today, yesterday, last7days, etc.)",
+            "type": "string"
+          },
+          "slice": {
+            "description": "Grouping dimensions per Affise API StatisticsEntity::getAllowedSliced(). `advertiser` and `manager` are admin-only. Sub IDs sub1..sub30 valid as slice (filter is capped at sub1..sub8). Note: `trafficback_reason` is ONLY compatible with `fields: [\"trafficback\"]` — conversion/traffic metrics are disabled server-side when this slice is present. Combine with other slices like `country`/`offer` to get drill-down (slice=[\"trafficback_reason\",\"country\"], fields=[\"trafficback\"]).",
+            "items": {
+              "enum": [
+                "year",
+                "quarter",
+                "month",
+                "week",
+                "day",
+                "hour",
+                "offer",
+                "goal",
+                "country",
+                "city",
+                "os",
+                "os_version",
+                "device",
+                "device_model",
+                "device_type",
+                "browser",
+                "browser_version",
+                "landing",
+                "prelanding",
+                "isp",
+                "conn_type",
+                "advertiser_manager_id",
+                "affiliate_manager_id",
+                "affiliate",
+                "affiliate_id",
+                "smart_id",
+                "trafficback_reason",
+                "sub1",
+                "sub2",
+                "sub3",
+                "sub4",
+                "sub5",
+                "sub6",
+                "sub7",
+                "sub8",
+                "sub9",
+                "sub10",
+                "sub11",
+                "sub12",
+                "sub13",
+                "sub14",
+                "sub15",
+                "sub16",
+                "sub17",
+                "sub18",
+                "sub19",
+                "sub20",
+                "sub21",
+                "sub22",
+                "sub23",
+                "sub24",
+                "sub25",
+                "sub26",
+                "sub27",
+                "sub28",
+                "sub29",
+                "sub30",
+                "advertiser",
+                "manager"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timezone": {
+            "description": "IANA timezone (e.g. \"Europe/Moscow\", \"UTC\")",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "affise_stats_raw"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Check Affise API status",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "affise_status"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Time-to-action analysis — click → conversion latency distribution for a specific offer (GET /3.0/stats/time-to-action). Admin only. Returns rows already enriched with affiliate name/email. Requires CTIT feature enabled on the tenant; will return a clear \"feature not enabled\" error if disabled.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "affiliate_ids": {
+            "description": "Single ID or comma-separated affiliate IDs",
+            "type": "string"
+          },
+          "date_from": {
+            "description": "Start date YYYY-MM-DD (required)",
+            "type": "string"
+          },
+          "date_to": {
+            "description": "End date YYYY-MM-DD (required)",
+            "type": "string"
+          },
+          "goal": {
+            "description": "Goal / event name filter",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Per page (max 500)",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "offer_id": {
+            "description": "Offer ID (required)",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "description": "Page",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "timezone": {
+            "description": "IANA timezone (default Europe/Moscow)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "offer_id"
+        ],
+        "type": "object"
+      },
+      "name": "affise_time_to_action"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true
+      },
+      "description": "Get trafficback statistics and analysis",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "advertiser": {
+            "description": "Advertiser IDs to filter",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "country": {
+            "description": "Country codes to filter",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "date_from": {
+            "description": "Start date (YYYY-MM-DD)",
+            "type": "string"
+          },
+          "date_to": {
+            "description": "End date (YYYY-MM-DD)",
+            "type": "string"
+          },
+          "device": {
+            "description": "Device types to filter",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "description": "Results per page (default: 100, max: 500)",
+            "type": "number"
+          },
+          "offer": {
+            "description": "Offer IDs to filter",
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "orderType": {
+            "description": "Sort direction (default: desc)",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "type": "string"
+          },
+          "os": {
+            "description": "Operating systems to filter",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "Page number (default: 1)",
+            "type": "number"
+          },
+          "partner": {
+            "description": "Partner IDs to filter",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "period": {
+            "description": "Quick period (today, yesterday, last7days, etc.)",
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "name": "affise_trafficback"
+    }
+  ]
+}

@@ -517,7 +517,7 @@ export function extractFilters(query: string): Record<string, string[]> {
     out.partner = affMatch[1].split(',').map(s => s.trim());
   }
 
-  // 2b. Identifier-like partner names: "for affiliate aff_crix", "partner client_abc",
+  // 2b. Identifier-like partner names: "for affiliate aff_demo", "partner client_abc",
   // "partner abc-123". Requires the value to contain at least one underscore,
   // hyphen, or digit — pure English words ("offers", "manager", "names") are
   // skipped to avoid false positives from queries like "show partner offers".

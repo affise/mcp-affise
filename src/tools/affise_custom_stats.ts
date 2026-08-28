@@ -209,7 +209,7 @@ export async function getAffiseCustomStats(
 
   // Auto-resolve non-numeric partner clientIds → numeric affiliate_ids.
   // Affise stats filter[partner] only accepts numeric IDs. When the caller
-  // passes a tracking name like "aff_crix", we hit /3.0/admin/partners?search=
+  // passes a tracking name like "aff_demo", we hit /3.0/admin/partners?search=
   // and substitute. Pure-numeric values are passed through untouched (no HTTP).
   const partnerValues = (params as any).partner;
   if (Array.isArray(partnerValues) && partnerValues.some((v: any) => !/^\d+$/.test(String(v)))) {
@@ -255,7 +255,7 @@ export async function getAffiseCustomStats(
 
   // Auto-resolve non-MongoID advertiser/supplier names → MongoID strings.
   // Affise stats filter[advertiser|supplier] expects a 24-char hex MongoID
-  // (e.g. "5dc2ea20b5d12930268b8a2a"). If caller passes a name or tag, hit
+  // (e.g. "507f1f77bcf86cd799439011"). If caller passes a name or tag, hit
   // GET /3.0/admin/advertisers?name=... and substitute the MongoID.
   // Pure-MongoID values pass through untouched.
   for (const field of ['advertiser', 'supplier']) {
@@ -528,7 +528,7 @@ export async function getAffiseCustomStats(
  * - Zero matches → error "partner not found: <name>".
  * - Multiple matches → error listing candidate ids so the caller can pick.
  *
- * Used by getAffiseCustomStats to make NL queries like "for partner aff_crix"
+ * Used by getAffiseCustomStats to make NL queries like "for partner aff_demo"
  * work transparently — caller doesn't need to do a separate lookup step.
  */
 async function resolvePartnerClientIds(

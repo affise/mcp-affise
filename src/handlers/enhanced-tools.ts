@@ -96,9 +96,9 @@ export const TOOLS = [
     name: 'affise_stats_raw',
     description: 'Raw stats via Affise /3.0/stats/custom. CRITICAL rules:\n' +
       '1. Filter ID types differ. The MCP server auto-resolves names → IDs for you:\n' +
-      '   - `filter.partner` / `affiliate` — NUMERIC affiliate_id (e.g. 394). Pass a clientId like "aff_crix" and we resolve via /3.0/admin/partners.\n' +
+      '   - `filter.partner` / `affiliate` — NUMERIC affiliate_id (e.g. 394). Pass a clientId like "aff_demo" and we resolve via /3.0/admin/partners.\n' +
       '   - `filter.offer` — NUMERIC offer_id (e.g. 12345). Resolve names via affise_search_offers.\n' +
-      '   - `filter.advertiser` / `supplier` — 24-char hex MongoID (e.g. "5dc2ea20b5d12930268b8a2a"). Pass a name like "Acme Corp" and we resolve via /3.0/admin/advertisers.\n' +
+      '   - `filter.advertiser` / `supplier` — 24-char hex MongoID (e.g. "507f1f77bcf86cd799439011"). Pass a name like "Acme Corp" and we resolve via /3.0/admin/advertisers.\n' +
       '2. `order[]` vocabulary DIFFERS from `fields[]` — sort keys are: total_revenue, total_count, total_null, raw, uniq, confirmed_earning, confirmed_count, confirmed_revenue, pending_count, pending_revenue, declined_count, declined_revenue, hold_count, hold_revenue (+admin: advertiser, affiliate, manager). NOT field names like "income" or "clicks".\n' +
       '3. Sort direction via `orderType` ("asc"|"desc"). DO NOT prefix order values with "-".\n' +
       '4. Date range ≤ 6 months. Date format YYYY-MM-DD.\n' +
