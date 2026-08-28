@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer, StdioServerTransport } from './mcp-sdk.js';
 import { loadConfig, getConfigStatus, clearSecureConfig } from './config.js';
 import { setupEnhancedHandlers } from './handlers/enhanced-tools.js';
 import { setupPromptHandlers } from './handlers/prompts.js';
@@ -41,7 +41,7 @@ process.on('SIGTERM', () => {
 });
 
 // Create MCP server instance
-const server = new Server(
+const mcpServer = new McpServer(
   {
     name: 'affise-mcp-server',
     version: '2.0.0'
@@ -53,6 +53,10 @@ const server = new Server(
     }
   }
 );
+
+// Low-level handle for the prompt handlers + the unconfigured status fallback,
+// which still speak the raw request-schema API.
+const server: Server = mcpServer.server;
 
 // Load configuration
 let config: { baseUrl: string; apiKey: string } | null = null;
@@ -132,7 +136,7 @@ async function main() {
   console.error('[affise-mcp] config ' + (config ? 'loaded (' + config.baseUrl + ')' : 'missing — falling back to status-only tool'));
 
   if (config) {
-    setupEnhancedHandlers(server, config);
+    setupEnhancedHandlers(mcpServer, config);
     setupPromptHandlers(server, config);
     console.error('[affise-mcp] handlers registered (23 tools + 6 prompts)');
   } else {
@@ -141,7 +145,7 @@ async function main() {
   }
 
   const transport = new StdioServerTransport();
-  await server.connect(transport);
+  await mcpServer.connect(transport);
   console.error('[affise-mcp] stdio transport connected, awaiting messages');
 
   // Setup graceful shutdown

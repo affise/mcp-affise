@@ -3,7 +3,8 @@
  * regressions in the validation layer for affise_stats_raw inputs.
  */
 
-import { ValidationService, STATS_RAW_FIELDS } from '../../src/services/validation-service.js';
+import { ValidationService } from '../../src/services/validation-service.js';
+import { STATS_RAW_FIELDS_ENUM } from '../../src/handlers/schemas/_shared.js';
 
 describe('ValidationService.validateRawStatsParams — negative cases', () => {
   let v: ValidationService;
@@ -66,8 +67,8 @@ describe('ValidationService.validateRawStatsParams — negative cases', () => {
   // enum advertised to clients. A stale hardcoded list previously rejected
   // schema-valid fields (earnings, payouts, noincome), forcing clients into
   // trial-and-error retries.
-  it('accepts every field advertised in STATS_RAW_FIELDS', () => {
-    for (const field of STATS_RAW_FIELDS) {
+  it('accepts every field advertised in STATS_RAW_FIELDS_ENUM', () => {
+    for (const field of STATS_RAW_FIELDS_ENUM) {
       const r = v.validateRawStatsParams({
         slice: ['os'],
         fields: [field],
