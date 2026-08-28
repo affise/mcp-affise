@@ -27,7 +27,7 @@ export const affise_stats_raw = {
     '   - `filter.advertiser` / `supplier` — 24-char hex MongoID; pass a name and we resolve via /3.0/admin/advertisers.\n' +
     '2. `order[]` vocabulary differs from `fields[]`. Sort keys: total_revenue, total_count, total_null, raw, uniq, confirmed_earning/_count/_revenue, pending_count/_revenue, declined_count/_revenue, hold_count/_revenue (+admin: advertiser, affiliate, manager). NOT field names like "income" or "clicks".\n' +
     '3. Sort direction via `orderType` ("asc"|"desc"). DO NOT prefix order values with "-".\n' +
-    '4. `costs` is also incompatible with os/sub*/geo slices server-side. Full reference: docs/affise-stats-custom-reference.md.\n' +
+    '4. `costs` is also incompatible with os/sub*/geo slices server-side.\n' +
     '5. One call = one date range. For MULTIPLE ranges (e.g. week 1 vs week 2, or each month separately), call this tool once per range. Prefer this tool over affise_stats for non-English asks and for precise partner/sub-ID exports.',
   inputSchema: {
     slice: z.array(z.enum(STATS_RAW_SLICE_ENUM)).optional()
