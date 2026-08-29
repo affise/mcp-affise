@@ -15,9 +15,13 @@ const mockedAxios = axios as Mocked<typeof axios>;
 import { getConversionById } from '../../src/tools/affise_conversion_by_id.js';
 
 const CFG = { baseUrl: 'https://api.example.com', apiKey: 'admin-key' };
-// Real MongoId shape (24 hex chars) — the impl validates this with regex
-// BEFORE hitting axios, so we have to supply a passable value.
-const VALID_ID = '648f8a2db49d2d0011aa00ff';
+// 24-char hex MongoId shape — the impl validates this with regex BEFORE
+// hitting axios, so we have to supply a passable value. This is the
+// canonical MongoDB example ObjectId (docs.mongodb.com), used as the
+// placeholder everywhere else in this repo a MongoId example is needed
+// (see tests/unit/affise_conversion_by_id.test.ts, affise_advertisers.test.ts,
+// simple-parser.filters.test.ts) — not a real record.
+const VALID_ID = '507f1f77bcf86cd799439011';
 
 function okResponse() {
   return {
