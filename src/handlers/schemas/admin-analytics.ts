@@ -1,9 +1,11 @@
 /**
- * Schemas for the four admin-analytics tools that produce tabular results:
- *   - affise_stats_raw       (/3.0/stats/custom)
- *   - affise_trafficback     (/3.0/stats/trafficback)
- *   - affise_retention_rate  (/3.0/stats/retentionrate)
- *   - affise_time_to_action  (/3.0/stats/time-to-action)
+ * Schemas for the admin-analytics tools:
+ *   - affise_stats_raw           (/3.0/stats/custom)
+ *   - affise_stats_compare       (two /3.0/stats/custom pulls, range-aligned)
+ *   - affise_trafficback         (/3.0/stats/trafficback)
+ *   - affise_affiliate_analysis  (composite: stats-by-offer + trafficback + detail)
+ *   - affise_retention_rate      (/3.0/stats/retentionrate)
+ *   - affise_time_to_action      (/3.0/stats/time-to-action)
  */
 
 import { z } from 'zod';
@@ -95,6 +97,58 @@ export const affise_stats_raw = {
   },
 } as const;
 
+export const affise_stats_compare = {
+  title: 'Affise Stats — Period-over-Period Compare',
+  description:
+    'Compare aggregate stats for a period against an auto-aligned prior period, via two /3.0/stats/custom pulls. Handles the month-to-date trap: `thismonth` is compared against the SAME day-range of last month (1–7 Jul vs 1–7 Jun), not a full month. Returns `current`/`baseline` totals + per-metric `delta` (abs + pct for counts/money; percentage-point `pp` for rates) + an alignment `note`. Alignment by period family: this/last month·quarter·year shift one unit back (day clamped); week shifts 7 days; rolling windows (last7days/last30days) use the equal window immediately before. Pass `period` (e.g. "thismonth", "lastweek") OR explicit `date_from`/`date_to` (baseline becomes the equal preceding window). `filter` mirrors affise_stats_raw (partner/offer/advertiser/country/os/sub1..8/…); names auto-resolve.',
+  inputSchema: {
+    period: z.string().optional()
+      .describe('Named period for the current range: today, yesterday, thisweek, lastweek, last7days, last30days, thismonth, lastmonth, thisquarter, lastquarter, thisyear, lastyear, q1..q4. Default: thismonth. Ignored when date_from/date_to are set.'),
+    date_from: z.string().optional().describe('Explicit current-range start (YYYY-MM-DD). With date_to, the baseline becomes the equal-length window immediately before.'),
+    date_to: z.string().optional().describe('Explicit current-range end (YYYY-MM-DD).'),
+    fields: z.array(z.enum(STATS_RAW_FIELDS_ENUM)).optional()
+      .describe('Additive metrics to total and compare (default: clicks, conversions, income, trafficback). Rate fields like `cr` are recomputed from components, not summed.'),
+    includeToday: z.boolean().optional()
+      .describe('End the current period at today (default true) or at yesterday (false, last complete day).'),
+    timezone: z.string().optional().describe('IANA timezone (e.g. "Europe/Moscow", "UTC")'),
+    filter: z.object({
+      partner: z.array(z.string()).optional(),
+      affiliate: z.array(z.string()).optional(),
+      supplier: z.array(z.string()).optional(),
+      advertiser: z.array(z.string()).optional(),
+      manager: z.array(z.string()).optional(),
+      advertiser_manager_id: z.array(z.string()).optional(),
+      affiliate_manager_id: z.array(z.string()).optional(),
+      offer: z.array(z.number()).optional(),
+      smart_id: z.array(z.string()).optional(),
+      country: z.array(z.string()).optional(),
+      city: z.array(z.string()).optional(),
+      currency: z.array(z.string()).optional(),
+      os: z.array(z.string()).optional(),
+      device: z.array(z.string()).optional(),
+      goal: z.array(z.string()).optional(),
+      payment_status: z.array(z.string()).optional(),
+      subaccount_id: z.array(z.string()).optional(),
+      sub1: z.array(z.string()).optional(),
+      sub2: z.array(z.string()).optional(),
+      sub3: z.array(z.string()).optional(),
+      sub4: z.array(z.string()).optional(),
+      sub5: z.array(z.string()).optional(),
+      sub6: z.array(z.string()).optional(),
+      sub7: z.array(z.string()).optional(),
+      sub8: z.array(z.string()).optional(),
+      offer_tag: z.string().optional(),
+      affiliate_tag: z.string().optional(),
+      advertiser_tag: z.string().optional(),
+    }).optional()
+      .describe('Filter conditions (Filter.php form), mirroring affise_stats_raw. Omit for a network-wide (account-level) comparison.'),
+  },
+  _meta: {
+    'affise/role': ['admin', 'partner'],
+    'affise/max_date_range_days': 180,
+  },
+} as const;
+
 export const affise_trafficback = {
   title: 'Affise Trafficback Stats',
   description: 'Get trafficback statistics and analysis',
@@ -113,6 +167,39 @@ export const affise_trafficback = {
     orderType: z.enum(ORDER_TYPE_ENUM).optional().describe('Sort direction (default: desc)'),
   },
   outputSchema: TABULAR_OUTPUT_SCHEMA,
+  _meta: {
+    'affise/role': 'admin',
+  },
+} as const;
+
+export const affise_affiliate_analysis = {
+  title: 'Affise Affiliate Analysis',
+  description:
+    'Composite account analysis for one affiliate: fans out stats-by-offer + trafficback + partner detail for the period, returns KPIs (confirmed conversions/earnings, active offers, trafficback total), a per-offer breakdown, a trafficback reason split, and rule-based insights (overcap, mistargeting, high decline rate, scale candidates). partner_id must be numeric — resolve logins via affise_list_partners first. Call this tool — instead of assembling the pulls manually — for "analyze partner/affiliate N", account-review requests, and when the user types "auto_analysis" / "auto-analysis" / "/auto_analysis" for a specific partner (that pseudo-command maps here).',
+  inputSchema: {
+    partner_id: z.number().int().min(1)
+      .describe('Affiliate ID (required, numeric). Resolve names/logins via affise_list_partners first.'),
+    date_from: z.string().optional().describe('Start date (YYYY-MM-DD)'),
+    date_to: z.string().optional().describe('End date (YYYY-MM-DD)'),
+    period: z.string().optional()
+      .describe('Quick period (today, yesterday, last7days, last30days, …). Default: last30days. Ignored when date_from/date_to are set.'),
+    limit: z.number().int().min(1).max(500).optional()
+      .describe('Max offers to pull into the breakdown (default 100, max 500)'),
+  },
+  outputSchema: {
+    status: z.string().describe("'ok' on success, 'error' on a handled failure"),
+    message: z.string().optional(),
+    data: z.object({
+      partner: z.unknown().optional(),
+      period: z.unknown().optional(),
+      kpis: z.record(z.string(), z.unknown()).optional(),
+      offers: z.array(z.unknown()).optional(),
+      trafficback: z.unknown().optional(),
+      insights: z.array(z.unknown()).optional(),
+    }).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+    timestamp: z.string().optional(),
+  },
   _meta: {
     'affise/role': 'admin',
   },

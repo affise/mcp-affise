@@ -38,7 +38,11 @@ const ALLOWED_ADDED_FIELDS = new Set(['title', '_meta', 'outputSchema', 'executi
 const ALLOWED_CHANGED_FIELDS = new Set(['annotations', 'description', 'inputSchema']);
 
 /** Tools added since the baseline. Phase 3 adds two; update deliberately. */
-const ALLOWED_NEW_TOOLS = new Set<string>([]);
+const ALLOWED_NEW_TOOLS = new Set<string>([
+  // Phase 3: the two v3.0 analytics tools the 2.1.0 surface never had.
+  'affise_stats_compare',
+  'affise_affiliate_analysis',
+]);
 
 /** Capability keys that may differ on `initialize`. */
 const ALLOWED_CAPABILITY_CHANGES = new Set(['tools']);

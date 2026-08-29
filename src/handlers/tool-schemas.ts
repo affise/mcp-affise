@@ -9,7 +9,7 @@
  * conversions, admin entities, partner-role tools). This file is just an
  * aggregator that re-keys them by wire name into `TOOL_SCHEMAS`.
  *
- * Why group instead of one-file-per-tool: 23 single-export files would
+ * Why group instead of one-file-per-tool: 25 single-export files would
  * explode without giving extra discoverability — the categories already
  * carve up the catalogue along the same axis the Affise REST API does.
  */
@@ -22,9 +22,11 @@ import {
 } from './schemas/nl.js';
 import {
   affise_stats_raw,
+  affise_stats_compare,
   affise_trafficback,
   affise_retention_rate,
   affise_time_to_action,
+  affise_affiliate_analysis,
 } from './schemas/admin-analytics.js';
 import {
   affise_conversions_raw,
@@ -56,9 +58,11 @@ export const TOOL_SCHEMAS = {
   affise_smart_search,
   // Admin analytics
   affise_stats_raw,
+  affise_stats_compare,
   affise_trafficback,
   affise_retention_rate,
   affise_time_to_action,
+  affise_affiliate_analysis,
   // Conversions
   affise_conversions_raw,
   affise_get_conversion,
