@@ -6,6 +6,8 @@ import { McpServer, StdioServerTransport } from './mcp-sdk.js';
 import { loadConfig, getConfigStatus, clearSecureConfig } from './config.js';
 import { setupEnhancedHandlers } from './handlers/enhanced-tools.js';
 import { TOOL_SCHEMAS } from './handlers/tool-schemas.js';
+import { setupSkillResources } from './skills/setup.js';
+import { SKILL_RESOURCES } from './skills/loader.js';
 import { setupPromptHandlers, PROMPT_NAMES } from './handlers/prompts.js';
 import { ErrorHandlerService } from './services/error-handler-service.js';
 
@@ -50,7 +52,8 @@ const mcpServer = new McpServer(
   {
     capabilities: {
       tools: {},
-      prompts: {} // AI-powered analytics prompts
+      prompts: {}, // AI-powered analytics prompts
+      resources: {} // role playbooks served at skill://affise/*
     }
   }
 );
@@ -139,8 +142,10 @@ async function main() {
   if (config) {
     setupEnhancedHandlers(mcpServer, config);
     setupPromptHandlers(mcpServer, config);
+    setupSkillResources(mcpServer);
     console.error('[affise-mcp] handlers registered ('
-      + Object.keys(TOOL_SCHEMAS).length + ' tools + ' + PROMPT_NAMES.length + ' prompts)');
+      + Object.keys(TOOL_SCHEMAS).length + ' tools + ' + PROMPT_NAMES.length + ' prompts + '
+      + Object.keys(SKILL_RESOURCES).length + ' skills)');
   } else {
     setupStatusTool(server);
     console.error('[affise-mcp] status-only handler registered');

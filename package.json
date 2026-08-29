@@ -9,8 +9,8 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "npm run security:audit && tsc && chmod +x build/index.js",
-    "build:unsafe": "tsc && chmod +x build/index.js",
+    "build": "npm run security:audit && tsc && chmod +x build/index.js && mkdir -p build/skills && rm -rf build/skills/content && cp -r src/skills/content build/skills/",
+    "build:unsafe": "tsc && chmod +x build/index.js && mkdir -p build/skills && rm -rf build/skills/content && cp -r src/skills/content build/skills/",
     "prepublishOnly": "npm run build",
     "start": "npm run build && node build/index.js",
     "clean": "rm -rf build dist coverage",
