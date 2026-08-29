@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 
 ## Features
 
-### 🔧 Tools (23 total)
+### 🔧 Tools (25 total)
 
 **Status & search**
 - **`affise_status`** — Check Affise API connectivity and configuration
@@ -21,9 +21,11 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 **Statistics**
 - **`affise_stats`** — Statistics by natural language (*"top 10 partners by income last week"*)
 - **`affise_stats_raw`** — Structured stats query with `slice` / `fields` / `filter` (Affise `/3.0/stats/custom`)
+- **`affise_stats_compare`** — Period-over-period comparison with the range auto-aligned, so month-to-date compares against the same day-range of the prior period
 - **`affise_conversions_raw`** — Per-event conversion records from `/3.0/stats/conversions`
 - **`affise_get_conversion`** — Fetch a single conversion by id
 - **`affise_trafficback`** — Trafficback reason / partner / geo breakdown
+- **`affise_affiliate_analysis`** — One-call account review for a single affiliate: KPIs, per-offer breakdown, trafficback split and rule-based insights
 - **`affise_retention_rate`** — Retention analytics across periods
 - **`affise_time_to_action`** — Time-to-action distribution analytics
 

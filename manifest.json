@@ -13,7 +13,9 @@
     "entry_point": "build/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/build/index.js"],
+      "args": [
+        "${__dirname}/build/index.js"
+      ],
       "env": {
         "AFFISE_BASE_URL": "${user_config.base_url}",
         "AFFISE_API_KEY": "${user_config.api_key}",
@@ -37,34 +39,122 @@
     }
   },
   "tools": [
-    { "name": "affise_status", "description": "Check Affise configuration status and connectivity" },
-    { "name": "affise_search_offers", "description": "Search and filter offers using natural language queries" },
-    { "name": "affise_stats", "description": "Natural-language statistics queries (revenue, conversions, traffic)" },
-    { "name": "affise_stats_raw", "description": "Structured statistics query with slice/fields/filter (/3.0/stats/custom)" },
-    { "name": "affise_offer_categories", "description": "Browse and search offer categories" },
-    { "name": "affise_trafficback", "description": "Trafficback analytics and reason breakdown" },
-    { "name": "affise_smart_search", "description": "Intelligent offer search across name, category, country, payouts" },
-    { "name": "affise_conversions_raw", "description": "Per-event conversion records from /3.0/stats/conversions" },
-    { "name": "affise_get_offer", "description": "Fetch detail for a single offer by id" },
-    { "name": "affise_get_conversion", "description": "Fetch detail for a single conversion by id" },
-    { "name": "affise_list_partners", "description": "Paginated affiliate (partner) list — admin role" },
-    { "name": "affise_get_partner", "description": "Fetch detail for a single affiliate by id — admin role" },
-    { "name": "affise_list_advertisers", "description": "Paginated advertiser list" },
-    { "name": "affise_get_advertiser", "description": "Fetch detail for a single advertiser by MongoId" },
-    { "name": "affise_offer_tracking_link", "description": "Generate a tracking link for offer × affiliate × sub IDs" },
-    { "name": "affise_retention_rate", "description": "Retention analytics across periods" },
-    { "name": "affise_time_to_action", "description": "Time-to-action distribution analytics" },
-    { "name": "affise_partner_profile", "description": "Calling affiliate's own profile — partner role" },
-    { "name": "affise_partner_balance", "description": "Calling affiliate's own balance — partner role" },
-    { "name": "affise_partner_news", "description": "News feed visible to the calling affiliate — partner role" },
-    { "name": "affise_partner_offers", "description": "Offers visible to the calling affiliate — partner role" },
-    { "name": "affise_partner_live_offers", "description": "Live (active) offers for the calling affiliate — partner role" },
-    { "name": "affise_partner_find_subs", "description": "Discover sub-ID values the affiliate has used — partner role" }
+    {
+      "name": "affise_status",
+      "description": "Check Affise configuration status and connectivity"
+    },
+    {
+      "name": "affise_search_offers",
+      "description": "Search and filter offers using natural language queries"
+    },
+    {
+      "name": "affise_stats",
+      "description": "Natural-language statistics queries (revenue, conversions, traffic)"
+    },
+    {
+      "name": "affise_stats_raw",
+      "description": "Structured statistics query with slice/fields/filter (/3.0/stats/custom)"
+    },
+    {
+      "name": "affise_offer_categories",
+      "description": "Browse and search offer categories"
+    },
+    {
+      "name": "affise_trafficback",
+      "description": "Trafficback analytics and reason breakdown"
+    },
+    {
+      "name": "affise_smart_search",
+      "description": "Intelligent offer search across name, category, country, payouts"
+    },
+    {
+      "name": "affise_conversions_raw",
+      "description": "Per-event conversion records from /3.0/stats/conversions"
+    },
+    {
+      "name": "affise_get_offer",
+      "description": "Fetch detail for a single offer by id"
+    },
+    {
+      "name": "affise_get_conversion",
+      "description": "Fetch detail for a single conversion by id"
+    },
+    {
+      "name": "affise_list_partners",
+      "description": "Paginated affiliate (partner) list — admin role"
+    },
+    {
+      "name": "affise_get_partner",
+      "description": "Fetch detail for a single affiliate by id — admin role"
+    },
+    {
+      "name": "affise_list_advertisers",
+      "description": "Paginated advertiser list"
+    },
+    {
+      "name": "affise_get_advertiser",
+      "description": "Fetch detail for a single advertiser by MongoId"
+    },
+    {
+      "name": "affise_offer_tracking_link",
+      "description": "Generate a tracking link for offer × affiliate × sub IDs"
+    },
+    {
+      "name": "affise_retention_rate",
+      "description": "Retention analytics across periods"
+    },
+    {
+      "name": "affise_time_to_action",
+      "description": "Time-to-action distribution analytics"
+    },
+    {
+      "name": "affise_partner_profile",
+      "description": "Calling affiliate's own profile — partner role"
+    },
+    {
+      "name": "affise_partner_balance",
+      "description": "Calling affiliate's own balance — partner role"
+    },
+    {
+      "name": "affise_partner_news",
+      "description": "News feed visible to the calling affiliate — partner role"
+    },
+    {
+      "name": "affise_partner_offers",
+      "description": "Offers visible to the calling affiliate — partner role"
+    },
+    {
+      "name": "affise_partner_live_offers",
+      "description": "Live (active) offers for the calling affiliate — partner role"
+    },
+    {
+      "name": "affise_partner_find_subs",
+      "description": "Discover sub-ID values the affiliate has used — partner role"
+    },
+    {
+      "name": "affise_stats_compare",
+      "description": "Compare aggregate stats for a period against an auto-aligned prior period, via two /3.0/stats/custom pulls"
+    },
+    {
+      "name": "affise_affiliate_analysis",
+      "description": "Composite account analysis for one affiliate: fans out stats-by-offer + trafficback + partner detail for the period, returns KPIs (confirmed conversions/earnings, active offers, tr"
+    }
   ],
-  "keywords": ["affise", "affiliate", "marketing", "analytics", "automation", "performance"],
+  "keywords": [
+    "affise",
+    "affiliate",
+    "marketing",
+    "analytics",
+    "automation",
+    "performance"
+  ],
   "license": "MIT",
   "compatibility": {
-    "platforms": ["darwin", "win32", "linux"],
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
     "runtimes": {
       "node": ">=18.0.0"
     }

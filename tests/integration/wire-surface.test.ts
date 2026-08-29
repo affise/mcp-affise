@@ -115,7 +115,15 @@ const stable = (v: unknown): unknown =>
 
 const same = (a: unknown, b: unknown) => JSON.stringify(stable(a)) === JSON.stringify(stable(b));
 
-describe.skipIf(!existsSync(ENTRY))('wire surface vs the 2.1.0 baseline', () => {
+describe('wire surface vs the 2.1.0 baseline', () => {
+  it('has a built server to check', () => {
+    // Previously `describe.skipIf(!existsSync(ENTRY))`, which meant `npm test`
+    // on a fresh clone reported green while checking nothing at all. The gate
+    // reads build/index.js, not source, so a stale or missing build silently
+    // validates the wrong thing.
+    expect(existsSync(ENTRY), `no build at ${ENTRY} — run \`npm run build\` first`).toBe(true);
+  });
+
   it('changes only in ways the allowlists permit', async () => {
     const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
     const captured = await capture();
@@ -131,6 +139,14 @@ describe.skipIf(!existsSync(ENTRY))('wire surface vs the 2.1.0 baseline', () => 
 
     const added = [...liveTools.keys()].filter((n) => !goldenTools.has(n));
     expect(added.filter((n) => !ALLOWED_NEW_TOOLS.has(n)), 'undeclared new tools').toEqual([]);
+
+    // ALLOWED_NEW_TOOLS is a requirement, not just a permission. Without this,
+    // deleting a tool added since the baseline leaves the whole suite green:
+    // it is absent from the golden, so `removed` stays empty, and absent from
+    // the live list, so `added` stays empty. Verified by mutation — Phase 3's
+    // entire deliverable could be reverted silently.
+    const missing = [...ALLOWED_NEW_TOOLS].filter((n) => !liveTools.has(n));
+    expect(missing, 'tools declared in ALLOWED_NEW_TOOLS but not served').toEqual([]);
 
     const violations: string[] = [];
     for (const [name, goldenTool] of goldenTools) {
