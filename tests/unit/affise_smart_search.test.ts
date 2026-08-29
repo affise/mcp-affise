@@ -43,9 +43,12 @@ describe('smartSearchAffiseOffers', () => {
     expect(r.data?.length).toBe(2);
   });
 
-  it('returns a structured-search result with `complete` or `sample` status on success', async () => {
+  it('returns a structured-search result with `complete` status on success', async () => {
+    // Both mocked offers fit in a single page (limit 100, 2 rows), so the
+    // sample path completes in one request — 'sample'/'user_confirmation_required'
+    // only arise past the pagination threshold, not for this fixture.
     const r = await smartSearchAffiseOffers(CFG, { countries: ['US'] });
-    expect(['complete', 'sample', 'user_confirmation_required']).toContain(r.status);
+    expect(r.status).toBe('complete');
   });
 
   it('hits the Affise /3.0/offers endpoint (downstream axios call)', async () => {
@@ -62,11 +65,22 @@ describe('smartSearchAffiseOffers', () => {
   });
 
   it('produces an error envelope on transport failure', async () => {
-    (mockedAxios.get as Mock).mockRejectedValueOnce(new Error('boom') as never);
+    // The pagination engine retries a failed fetch up to maxRetries (3) with
+    // backoff before giving up. `mockRejectedValueOnce` only fails the FIRST
+    // call, so it does not exercise a genuine failure — attempt 2 falls
+    // through to `beforeEach`'s persistent mockResolvedValue and the search
+    // "succeeds" with the fixture's 2 offers. That let the original version
+    // of this test read `expect(['error', 'complete', 'sample']).toContain(
+    // r.status)`, which is true of BOTH outcomes — verified by mutation: a
+    // regression that reported a real transport failure as 'complete'
+    // (silently handing the caller an empty-but-"successful" result) still
+    // passed. Rejecting every call exhausts all retries and pins the one
+    // real failure outcome.
+    (mockedAxios.get as Mock).mockRejectedValue(new Error('boom') as never);
     const r = await smartSearchAffiseOffers(CFG, { countries: ['US'] });
-    // The smart-pagination engine wraps errors but still surfaces a
-    // structured-search result — just with status=error and no data.
     expect(r.search_type).toBe('structured');
-    expect(['error', 'complete', 'sample']).toContain(r.status);
-  });
+    expect(r.status).toBe('error');
+    expect(r.data).toEqual([]);
+    expect(r.message).toContain('boom');
+  }, 10_000);
 });
