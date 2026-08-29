@@ -15,7 +15,7 @@ Pick the **cadence**. If unstated: "how's the business/account today" → Daily;
 - **Active vs dormant** — active = ≥1 conversion in the trailing 90 days; else dormant. Applies to BOTH affiliates and advertisers. Report cohorts, never a raw count (a vanity metric).
 - **Activation rate** — active ÷ total (compute separately for affiliates and advertisers).
 - **Net revenue / margin after rewards** — revenue after commissions/fees — the sustainability check, not gross.
-- **Concentration risk** — % of revenue from the top 1% (compute for BOTH sides — top affiliates and top advertisers). Benchmarks: ~62% iGaming, ~45% forex, ~28–31% eCommerce/SaaS.
+- **Concentration risk** — % of revenue from the top 1% (compute for BOTH sides — top affiliates and top advertisers). Cross-industry benchmarks, not Affise data: ~62% iGaming, ~45% forex, ~28–31% eCommerce/SaaS.
 - **LTV / retention** — 30/60/90-day retention and chargeback/traffic-quality of the business's converted traffic.
 - **NGR/GGR, FTD, negative carryover** (iGaming) — revenue basis, first-time deposits, super-affiliate churn cause.
 

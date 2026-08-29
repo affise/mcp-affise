@@ -165,6 +165,7 @@ async function capture(): Promise<Record<number, any>> {
   child.stdin.write(rpc(1, 'tools/list') + '\n');
   child.stdin.write(rpc(2, 'prompts/list') + '\n');
   child.stdin.write(rpc(3, 'resources/list') + '\n');
+  child.stdin.write(rpc(4, 'resources/templates/list') + '\n');
   REQUIRED_SKILL_RESOURCES.forEach((uri, i) => {
     child.stdin.write(rpc(SKILL_READ_ID_BASE + i, 'resources/read', { uri }) + '\n');
   });
@@ -172,7 +173,7 @@ async function capture(): Promise<Record<number, any>> {
   // resources/list answering -32601 still produces a response with id 3, so a
   // server that has lost the resource surface fails an assertion rather than
   // hanging until the poll's own deadline and reporting a timeout instead.
-  const needed = [0, 1, 2, 3, ...REQUIRED_SKILL_RESOURCES.map((_, i) => SKILL_READ_ID_BASE + i)];
+  const needed = [0, 1, 2, 3, 4, ...REQUIRED_SKILL_RESOURCES.map((_, i) => SKILL_READ_ID_BASE + i)];
 
   await new Promise<void>((done) => {
     const started = Date.now();
@@ -286,6 +287,17 @@ describe('wire surface vs the 2.1.0 baseline', () => {
       }
     }
     expect(regressed, 'prompt arguments that lost their description').toEqual([]);
+  }, 40_000);
+
+  it('serves no resource templates until someone declares them', async () => {
+    // resources/templates/list went from -32601 to an empty list the moment a
+    // resource capability was registered. Nothing asserted on it, so a future
+    // template registration would land on the wire ungated — the one inventory
+    // on this branch that was still open.
+    const captured = await capture();
+    const templates = captured[4]?.result?.resourceTemplates;
+    expect(captured[4]?.error, 'resources/templates/list stopped answering').toBeUndefined();
+    expect(templates, 'undeclared resource templates appeared').toEqual([]);
   }, 40_000);
 
   it('does not regrow a widget surface', async () => {
