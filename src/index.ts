@@ -51,11 +51,13 @@ const mcpServer = new McpServer(
     version: '2.0.0'
   },
   {
-    capabilities: {
-      tools: {},
-      prompts: {}, // AI-powered analytics prompts
-      resources: {} // role playbooks served at skill://affise/*
-    },
+    // No `capabilities` block on purpose. McpServer.registerTool /
+    // registerPrompt / registerResource each call registerCapabilities()
+    // themselves, so declaring a capability here only adds the ones we do NOT
+    // serve. That is exactly what happened before: an unconfigured server
+    // advertised prompts and resources, then answered prompts/list and
+    // resources/list with -32601. Letting registration do the declaring keeps
+    // the advertised surface equal to the served surface on both branches.
     instructions: SERVER_INSTRUCTIONS
   }
 );
@@ -149,8 +151,18 @@ async function main() {
       + Object.keys(TOOL_SCHEMAS).length + ' tools + ' + PROMPT_NAMES.length + ' prompts + '
       + Object.keys(SKILL_RESOURCES).length + ' skills)');
   } else {
+    // The status fallback speaks the low-level request-schema API, which does
+    // NOT register a capability the way McpServer.registerTool does, so the
+    // tools capability has to be declared by hand on this branch.
+    server.registerCapabilities({ tools: {} });
     setupStatusTool(server);
-    console.error('[affise-mcp] status-only handler registered');
+    // The playbooks read no credentials, and a DXT user enters their API key
+    // *after* installing. Without this, that window served an instructions
+    // block telling the client to load skill://affise/* against a
+    // resources/list that answered -32601.
+    setupSkillResources(mcpServer);
+    console.error('[affise-mcp] status-only handler registered ('
+      + Object.keys(SKILL_RESOURCES).length + ' skills)');
   }
 
   const transport = new StdioServerTransport();
