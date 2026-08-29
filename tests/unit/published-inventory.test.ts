@@ -93,6 +93,16 @@ describe('every place that states a version agrees', () => {
     expect(manifest.version).toBe(pkg.version);
   });
 
+  it('names the same licence in the README that ships with the package', () => {
+    // README.md is the npm package page and ships at the root of both the
+    // tarball and the DXT bundle. The licence was changed in package.json,
+    // manifest.json and LICENSE while the README kept saying ISC — and the
+    // pkg-vs-manifest assertion could not see it. npm publishes are permanent.
+    const stated = readme.match(/licensed under the (\w+) License/);
+    expect(stated, 'README no longer states a licence — did its wording change?').not.toBeNull();
+    expect(stated![1], 'README licence').toBe(pkg.license);
+  });
+
   it('declares the same licence in package.json and the DXT manifest', () => {
     expect(pkg.license).toBe(manifest.license);
   });

@@ -30,8 +30,14 @@ jobs:
           node-version: '22.x'
           cache: npm
 
-      # `npm ci` fails fast if package-lock.json drifts from package.json —
-      # the exact regression that broke the first release. This is the gate.
+      # `npm ci` installs exactly the locked tree. It fails only on a dependency
+      # the lockfile cannot satisfy — NOT on a stale version or licence field,
+      # and not on a dependency missing from the lockfile's root entry while
+      # present in the tree as a transitive. Measured: a lockfile reading an
+      # old version and licence, with `zod` absent from its root dependencies,
+      # installed cleanly. Version and licence agreement is asserted by the
+      # suite and, at the only moment that matters, by the pre-publish gate in
+      # publish.yml.
       - name: Install dependencies
         run: npm ci
 

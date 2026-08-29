@@ -663,7 +663,7 @@ The server uses a **simplified architecture** focused on direct API integration:
 
 ## License
 
-This project is licensed under the ISC License.
+This project is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Support
 
