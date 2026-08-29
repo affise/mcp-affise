@@ -6,6 +6,7 @@ import { McpServer, StdioServerTransport } from './mcp-sdk.js';
 import { loadConfig, getConfigStatus, clearSecureConfig } from './config.js';
 import { setupEnhancedHandlers } from './handlers/enhanced-tools.js';
 import { TOOL_SCHEMAS } from './handlers/tool-schemas.js';
+import { SERVER_INSTRUCTIONS } from './server-instructions.js';
 import { setupSkillResources } from './skills/setup.js';
 import { SKILL_RESOURCES } from './skills/loader.js';
 import { setupPromptHandlers, PROMPT_NAMES } from './handlers/prompts.js';
@@ -54,7 +55,8 @@ const mcpServer = new McpServer(
       tools: {},
       prompts: {}, // AI-powered analytics prompts
       resources: {} // role playbooks served at skill://affise/*
-    }
+    },
+    instructions: SERVER_INSTRUCTIONS
   }
 );
 
