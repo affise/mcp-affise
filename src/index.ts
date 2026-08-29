@@ -5,6 +5,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { McpServer, StdioServerTransport } from './mcp-sdk.js';
 import { loadConfig, getConfigStatus, clearSecureConfig } from './config.js';
 import { setupEnhancedHandlers } from './handlers/enhanced-tools.js';
+import { TOOL_SCHEMAS } from './handlers/tool-schemas.js';
 import { setupPromptHandlers } from './handlers/prompts.js';
 import { ErrorHandlerService } from './services/error-handler-service.js';
 
@@ -138,7 +139,8 @@ async function main() {
   if (config) {
     setupEnhancedHandlers(mcpServer, config);
     setupPromptHandlers(server, config);
-    console.error('[affise-mcp] handlers registered (23 tools + 6 prompts)');
+    console.error('[affise-mcp] handlers registered ('
+      + Object.keys(TOOL_SCHEMAS).length + ' tools + 6 prompts)');
   } else {
     setupStatusTool(server);
     console.error('[affise-mcp] status-only handler registered');
