@@ -346,6 +346,46 @@ describe('wire surface vs the 2.1.0 baseline', () => {
     expect(broken, 'skill resources that do not resolve').toEqual([]);
   }, 40_000);
 
+  it('reports package.json\'s version as serverInfo.version', async () => {
+    // `serverInfo.version` was a literal in src/index.ts and sat two releases
+    // behind package.json (2.0.0 vs 2.1.0) because nothing compared the two.
+    // src/version.ts derives it now; this reads it back off a running server,
+    // which is the only place the built `build/` layout's path resolution is
+    // actually exercised.
+    const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8'));
+    const captured = await capture();
+    expect(captured[0].result.serverInfo.version).toBe(pkg.version);
+  }, 40_000);
+
+  it('advertises the served prompts accurately in the DXT manifest', async () => {
+    // The manifest had no `prompts` key at all while the server served six, so
+    // Claude Desktop under-advertised the extension. Comparing argument names
+    // as well as prompt names keeps the manifest from going stale the way its
+    // tool list did.
+    const manifest = JSON.parse(readFileSync(resolve(__dirname, '../../manifest.json'), 'utf8'));
+    const captured = await capture();
+
+    const declared = new Map<string, any>(
+      (manifest.prompts ?? []).map((p: any) => [p.name, p]),
+    );
+    const live = new Map<string, any>(
+      captured[2].result.prompts.map((p: any) => [p.name, p]),
+    );
+
+    expect([...declared.keys()].sort(), 'manifest prompt names vs served')
+      .toEqual([...live.keys()].sort());
+
+    const drift: string[] = [];
+    for (const [name, servedPrompt] of live) {
+      const servedArgs = (servedPrompt.arguments ?? []).map((a: any) => a.name).sort();
+      const manifestArgs = [...(declared.get(name)?.arguments ?? [])].sort();
+      if (!same(servedArgs, manifestArgs)) {
+        drift.push(`${name}: manifest lists ${manifestArgs.length} args, server serves ${servedArgs.length}`);
+      }
+    }
+    expect(drift, 'manifest prompt arguments drifted from the served surface').toEqual([]);
+  }, 40_000);
+
   it('returns a non-empty instructions block on initialize', async () => {
     // Nothing asserted on `instructions` before Phase 5, so a regression that
     // emptied it — a bad import, a stripped constant — would have shipped

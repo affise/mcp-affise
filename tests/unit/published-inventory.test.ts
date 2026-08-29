@@ -13,6 +13,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { TOOL_SCHEMAS } from '../../src/handlers/tool-schemas.js';
+import { PROMPT_NAMES } from '../../src/handlers/prompts.js';
+import { SERVER_VERSION } from '../../src/version.js';
 
 const root = (f: string) => resolve(__dirname, '../..', f);
 const manifest = JSON.parse(readFileSync(root('manifest.json'), 'utf8'));
@@ -20,6 +22,7 @@ const pkg = JSON.parse(readFileSync(root('package.json'), 'utf8'));
 const readme = readFileSync(root('README.md'), 'utf8');
 
 const served = Object.keys(TOOL_SCHEMAS).sort();
+const servedPrompts = [...PROMPT_NAMES].sort();
 
 describe('published inventory matches the served registry', () => {
   it('lists every served tool in the DXT manifest, and nothing else', () => {
@@ -51,5 +54,46 @@ describe('published inventory matches the served registry', () => {
     const pkgCount = String(pkg.description).match(/(\d+) tools/);
     expect(pkgCount, 'package.json description no longer states a tool count').not.toBeNull();
     expect(Number(pkgCount![1]), 'package.json description tool count').toBe(count);
+  });
+});
+
+describe('published inventory matches the served prompt registry', () => {
+  it('lists every served prompt in the DXT manifest, and nothing else', () => {
+    const declared = (manifest.prompts ?? []).map((p: { name: string }) => p.name).sort();
+    expect(declared).toEqual(servedPrompts);
+  });
+
+  it('gives every manifest prompt entry the fields the DXT schema requires', () => {
+    for (const prompt of manifest.prompts ?? []) {
+      expect(prompt.description, `${prompt.name} has no description in the manifest`).toBeTruthy();
+      expect(prompt.text, `${prompt.name} has no text in the manifest`).toBeTruthy();
+      expect(Array.isArray(prompt.arguments), `${prompt.name} has no arguments array`).toBe(true);
+    }
+  });
+
+  it('states the right prompt count wherever a count is stated', () => {
+    const pkgCount = String(pkg.description).match(/(\d+) analysis prompts/);
+    expect(pkgCount, 'package.json description no longer states a prompt count').not.toBeNull();
+    expect(Number(pkgCount![1]), 'package.json description prompt count').toBe(servedPrompts.length);
+  });
+});
+
+/**
+ * `serverInfo.version` was hardcoded in `src/index.ts` and drifted two
+ * releases behind `package.json` — 2.0.0 on the wire against 2.1.0 in the
+ * package — because nothing compared them. `src/version.ts` now derives it,
+ * and these assertions keep the manifest from drifting the same way.
+ */
+describe('every place that states a version agrees', () => {
+  it('derives serverInfo.version from package.json', () => {
+    expect(SERVER_VERSION).toBe(pkg.version);
+  });
+
+  it('states the same version in the DXT manifest', () => {
+    expect(manifest.version).toBe(pkg.version);
+  });
+
+  it('declares the same licence in package.json and the DXT manifest', () => {
+    expect(pkg.license).toBe(manifest.license);
   });
 });
