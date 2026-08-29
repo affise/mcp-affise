@@ -33,6 +33,51 @@ const SRC = join(ROOT, 'src');
 const BANNED_DIRS = ['transports', 'middleware', 'routes', 'widgets'];
 
 /**
+ * Every directory permitted under `src/`. This is the arm that survives a
+ * rename: BANNED_DIRS only catches a reintroduction that kept the old folder
+ * name, which is the easy case. Verification planted a working OAuth
+ * authorization-code exchange in `src/helpers/oauth-thing.ts`, imported it
+ * from index.ts, and the whole suite stayed green — a path-prefix match is
+ * still a lexical match, just on directory names instead of file content.
+ *
+ * Adding a directory here is deliberate and shows up in review. That is the
+ * point; do not widen it to make a build pass.
+ */
+const ALLOWED_SRC_DIRS = [
+  'config', 'handlers', 'health', 'prompts', 'services',
+  'shared', 'skills', 'tools', 'types', 'utils',
+];
+
+/**
+ * Module specifiers no file in the graph may import, whatever it is called.
+ * A renamed OAuth module still has to reach for a JWT library, an HTTP server
+ * or a session store to do its job.
+ */
+const BANNED_IMPORTS = [
+  'express', 'cors', 'jsonwebtoken', 'jose', 'ioredis', 'redis',
+  'express-rate-limit', 'prom-client', 'passport', 'openid-client',
+  'node:http', 'node:https', 'http', 'https', 'node:net', 'net', 'ws',
+];
+
+/**
+ * Auth and HTTP-server primitives that have no business in a stdio client.
+ * Matched against code with comments and string-free lines stripped, so a
+ * docblock explaining why OAuth is absent does not trip it.
+ */
+const BANNED_CODE_PATTERNS: Array<[RegExp, string]> = [
+  [/\bcreateServer\s*\(/, 'starts an HTTP/TCP listener'],
+  [/\bapp\.(get|post|put|delete|use|listen)\s*\(/, 'wires an Express-style route'],
+  [/\b(jwt|jsonwebtoken)\.(sign|verify)\s*\(/, 'signs or verifies a JWT'],
+  // `grant_type` is the one OAuth token that only appears in an actual token
+  // exchange. `client_secret` and `code_verifier` are deliberately NOT matched
+  // on their own: the error handler lists them among the key names it redacts
+  // from logs, which is the opposite of handling them. A real exchange still
+  // has to name its grant.
+  [/\bgrant_type\b/, 'performs an OAuth token exchange'],
+  [/\bAuthorization:\s*[`'"]Bearer/, 'mints an Authorization header'],
+];
+
+/**
  * Packages that only a network-facing server needs. Any of these in runtime
  * `dependencies` means an HTTP surface came back, whatever the files are called.
  */
@@ -148,6 +193,45 @@ describe('stdio-only surface', () => {
     // would not catch that.
     const present = BANNED_DIRS.filter((d) => existsSync(join(SRC, d)));
     expect(present, 'banned directories present under src/').toEqual([]);
+  });
+
+  it('grows no undeclared directory under src/', () => {
+    // The rename-resistant arm. BANNED_DIRS only catches a reintroduction that
+    // kept the old folder name; this catches one that did not.
+    const dirs = readdirSync(SRC, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    const undeclared = dirs.filter((d) => !ALLOWED_SRC_DIRS.includes(d));
+    expect(undeclared, 'undeclared directories under src/ — declare them in ALLOWED_SRC_DIRS').toEqual([]);
+  });
+
+  it('imports no HTTP-server, JWT or session-store package anywhere', () => {
+    const offenders: string[] = [];
+    for (const file of allSourceFiles(SRC)) {
+      const source = readFileSync(file, 'utf8');
+      for (const pattern of SPECIFIER_PATTERNS) {
+        for (const match of source.matchAll(pattern)) {
+          const spec = match[1];
+          if (BANNED_IMPORTS.includes(spec)) offenders.push(`${rel(file)} imports '${spec}'`);
+        }
+      }
+    }
+    expect([...new Set(offenders)], 'banned module imports').toEqual([]);
+  });
+
+  it('contains no auth or HTTP-server primitives outside comments', () => {
+    const offenders: string[] = [];
+    for (const file of allSourceFiles(SRC)) {
+      const code = readFileSync(file, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .split('\n')
+        .map((l) => l.replace(/\/\/.*$/, ''))
+        .join('\n');
+      for (const [pattern, why] of BANNED_CODE_PATTERNS) {
+        if (pattern.test(code)) offenders.push(`${rel(file)} ${why}`);
+      }
+    }
+    expect(offenders, 'stdio client carrying server-side auth machinery').toEqual([]);
   });
 
   it('lists no HTTP-server package in runtime dependencies', () => {
