@@ -61,7 +61,7 @@ describe('MCP Handlers Integration', () => {
 
     // Setup handlers
     setupEnhancedHandlers(server, mockConfig);
-    setupPromptHandlers(server.server, mockConfig);
+    setupPromptHandlers(server, mockConfig);
 
     // Mock successful API responses
     mockedAxios.create.mockReturnValue({
@@ -131,7 +131,7 @@ describe('MCP Handlers Integration', () => {
           { name: 'test', version: '1.0.0' },
           { capabilities: { prompts: {} } }
         );
-        setupPromptHandlers(testServer.server, mockConfig);
+        setupPromptHandlers(testServer, mockConfig);
       }).not.toThrow();
     });
   });

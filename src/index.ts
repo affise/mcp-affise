@@ -55,8 +55,8 @@ const mcpServer = new McpServer(
   }
 );
 
-// Low-level handle for the prompt handlers + the unconfigured status fallback,
-// which still speak the raw request-schema API.
+// Low-level handle for the unconfigured status fallback, which still speaks
+// the raw request-schema API.
 const server: Server = mcpServer.server;
 
 // Load configuration
@@ -138,7 +138,7 @@ async function main() {
 
   if (config) {
     setupEnhancedHandlers(mcpServer, config);
-    setupPromptHandlers(server, config);
+    setupPromptHandlers(mcpServer, config);
     console.error('[affise-mcp] handlers registered ('
       + Object.keys(TOOL_SCHEMAS).length + ' tools + 6 prompts)');
   } else {

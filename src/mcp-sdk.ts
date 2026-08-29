@@ -12,7 +12,8 @@
 
 // High-level server with registerTool/registerPrompt — the only public-facing
 // server surface. The low-level `Server` class is reachable as `mcpServer.server`
-// for the handlers that still speak the raw request-schema API (prompts).
+// for the unconfigured status fallback, the last caller that still speaks the
+// raw request-schema API.
 export { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 // Stdio transport (Claude Desktop / local clients) — the only transport.
