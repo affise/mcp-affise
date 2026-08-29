@@ -472,14 +472,20 @@ export class ValidationService {
       const from = new Date(normalized.date_from);
       const to = new Date(normalized.date_to);
       if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-        const monthsDiff = (to.getFullYear() - from.getFullYear()) * 12 +
-                           (to.getMonth() - from.getMonth());
-        // Day-of-month matters: counting calendar months alone lets
-        // 2026-01-01 → 2026-07-30 through as "6 months" when it is 210 days,
-        // and the request then fails server-side instead of here. Landing on a
-        // later day of the month means the sixth month is already over.
+        // UTC accessors throughout. `new Date('2026-03-01')` parses as UTC
+        // midnight, so reading it back with the local getMonth()/getDate()
+        // shifts every date a day earlier anywhere west of UTC — which
+        // rejected legal six-month ranges across the Americas and let
+        // six-months-plus-a-day through. Mixing the two is the bug; the
+        // input is UTC, so the arithmetic is too.
+        const monthsDiff = (to.getUTCFullYear() - from.getUTCFullYear()) * 12 +
+                           (to.getUTCMonth() - from.getUTCMonth());
+        // Day-of-month matters: calendar months alone let 2026-01-01 →
+        // 2026-07-30 through as "6 months" when it is 210 days, and the
+        // request then failed server-side instead of here. Landing on a later
+        // day of the month means the sixth month is already over.
         const exceedsSixMonths = monthsDiff > 6 ||
-                                 (monthsDiff === 6 && to.getDate() > from.getDate());
+                                 (monthsDiff === 6 && to.getUTCDate() > from.getUTCDate());
         if (exceedsSixMonths) {
           throw new Error('Date range exceeds 6 months (Affise MAX_DATERANGE_MONTHS)');
         }
