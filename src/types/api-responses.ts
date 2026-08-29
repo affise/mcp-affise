@@ -257,8 +257,8 @@ export interface OfferSummary {
 }
 
 /**
- * Slim projection of an offer carrying only the fields the offers-list
- * widget card and the model's text summary read. Produced by
+ * Slim projection of an offer carrying only the fields an offer card and
+ * the model's text summary read. Produced by
  * `toOfferCard()` so the search payload stays under the host's inline
  * tool-result budget (full OfferSummary entries are ~8-10 KB each). Full
  * payout tables / landings live in `affise_get_offer`.

@@ -117,10 +117,10 @@ export class EnhancedToolHandler {
       }
 
       // Use user session credentials if provided, otherwise fall back to static config.
-      // Normalize baseUrl here — the single chokepoint every tool (SDK + WS path)
-      // funnels through — so a trailing slash never reaches the string-concat URL
+      // Normalize baseUrl here — the single chokepoint every tool funnels
+      // through — so a trailing slash never reaches the string-concat URL
       // builders and turns into a 404 (`…com//3.0/...`). Covers env, static-token,
-      // and already-stored OAuth sessions alike.
+      // and stored-session credentials alike.
       // `apiKey` is re-read explicitly, not left to the spread: `this.config`
       // is a SecureConfigWrapper whose baseUrl/apiKey are prototype getters,
       // and object spread copies own enumerable properties only. Spreading
@@ -253,10 +253,11 @@ export class EnhancedToolHandler {
 }
 
 /**
- * Above this serialized size, a widget-backed tool result is too big to hand
- * to the model verbatim — the host offloads `content[].text` to a file and the
- * model is left grepping it. The full rows still reach the widget via
- * `structuredContent`, so for the text block we substitute a compact summary.
+ * Above this serialized size, a tool result is too big to hand to the model
+ * verbatim — the host offloads `content[].text` to a file and the model is
+ * left grepping it. Tools that declare an `outputSchema` also return the full
+ * payload in `structuredContent`, so for those the text block can safely
+ * collapse to a compact summary without losing anything.
  * ~12 KB leaves comfortable headroom under typical inline-result budgets.
  */
 const MODEL_TEXT_MAX_BYTES = 12_000;
@@ -286,13 +287,14 @@ function extractCollection(result: any): {
 
 /**
  * Build the model-facing text for a tool result. Small payloads pass through
- * as full JSON. Large widget-backed payloads collapse to a summary (counts,
- * columns, pagination, a few sample rows) — the full data already rode along
- * in `structuredContent` for the widget, so nothing is lost to the UI.
+ * as full JSON. Large payloads from a tool that also returns
+ * `structuredContent` collapse to a summary (counts, columns, pagination, a
+ * few sample rows) — the full data already rode along in `structuredContent`,
+ * so nothing is dropped from the response.
  */
-export function buildModelText(result: any, hasWidget: boolean): string {
+export function buildModelText(result: any, hasStructuredContent: boolean): string {
   const full = JSON.stringify(result, null, 2);
-  if (!hasWidget || Buffer.byteLength(full, 'utf8') <= MODEL_TEXT_MAX_BYTES) {
+  if (!hasStructuredContent || Buffer.byteLength(full, 'utf8') <= MODEL_TEXT_MAX_BYTES) {
     return full;
   }
 
@@ -318,7 +320,7 @@ export function buildModelText(result: any, hasWidget: boolean): string {
         dropped_columns: grid.dropped_columns,
       },
       sample_rows: sample,
-      note: `All ${total} rows are rendered in the widget. Only the first ${sample.length} are shown here to stay within context. To inspect specific rows in text, narrow with filters (search/status/manager) or request a smaller page/limit.`,
+      note: `All ${total} rows are in this result's structuredContent. Only the first ${sample.length} are repeated here as text, to stay within context. To inspect specific rows as text, narrow with filters (search/status/manager) or request a smaller page/limit.`,
     }, null, 2);
   }
 
@@ -328,22 +330,21 @@ export function buildModelText(result: any, hasWidget: boolean): string {
       ...base,
       summary: { collection: array.key, returned: array.items.length },
       sample_items: sample,
-      note: `${array.items.length} ${array.key} rendered in the widget. Showing the first ${sample.length} here; narrow with filters to inspect specific entries in text.`,
+      note: `${array.items.length} ${array.key} are in this result's structuredContent. Showing the first ${sample.length} here as text; narrow with filters to inspect specific entries in text.`,
     }, null, 2);
   }
 
   return JSON.stringify({
     ...base,
-    note: 'Full result rendered in the widget; payload omitted from text to stay within context.',
+    note: "Full result is in this result's structuredContent; payload omitted from the text block to stay within context.",
   }, null, 2);
 }
 
 /**
- * Widget-paginated tools: their stats-grid widget fetches further pages on
- * demand via `app.callServerTool` (ext-apps), accumulating rows client-side.
- * Each page must stay under the host's widget-data budget AND the model
- * context. We give every such tool a default page size, and HARD-CAP the
- * ones whose rows are wide enough that a bigger page would overflow.
+ * Paged tools: their results are row collections large enough that a single
+ * unbounded call would overflow the model's context. We give every such tool
+ * a default page size, and HARD-CAP the ones whose rows are wide enough that
+ * a bigger page would overflow anyway.
  *
  * Conversions are the exception: they are column-projected (~14 cols, see
  * affise_conversions DEFAULT_CONVERSION_FIELDS), so a row is light (~0.25 KB)
@@ -351,8 +352,8 @@ export function buildModelText(result: any, hasWidget: boolean): string {
  * an export in one call. Partners/advertisers keep all columns, so 100 rows
  * (~24 KB) is the safe ceiling and we cap there.
  */
-const DEFAULT_WIDGET_PAGE_SIZE = 100;
-const WIDGET_PAGE_SIZES: Record<string, number> = {
+const DEFAULT_PAGE_SIZE = 100;
+const TOOL_PAGE_SIZES: Record<string, number> = {
   affise_list_partners: 100,
   affise_list_advertisers: 100,
   affise_conversions_raw: 100,
@@ -361,23 +362,17 @@ const WIDGET_PAGE_SIZES: Record<string, number> = {
 };
 // Tools whose page size is a hard ceiling (vs. just a default the model may
 // exceed). Conversions is intentionally absent — projection keeps it light.
-const HARD_CAPPED_WIDGET_TOOLS = new Set<string>([
+const HARD_CAPPED_PAGED_TOOLS: ReadonlySet<string> = new Set<string>([
   'affise_list_partners',
   'affise_list_advertisers',
 ]);
-function widgetPageSize(toolName: string): number | undefined {
-  return WIDGET_PAGE_SIZES[toolName];
+function toolPageSize(toolName: string): number | undefined {
+  return TOOL_PAGE_SIZES[toolName];
 }
 
 /**
- * Build the pagination cursor the widget needs to request the next page.
- * `ontoolinput` hands the widget the call arguments but NOT the tool name, so
- * the server names the tool here. Returns null when the result carries no
- * grid (error / empty) or there are no further pages.
- */
-/**
- * Hosts reject (ChatGPT) or offload (Claude Desktop) tool results past a hard
- * ceiling — ChatGPT's is 1 MB, counting `content` + `structuredContent`
+ * Hosts reject or offload tool results past a hard ceiling — commonly 1 MB,
+ * counting `content` + `structuredContent`
  * together. Stay comfortably under it: if a grid result is too big, drop
  * trailing rows to fit and tell the model how to get the rest (narrow columns
  * via `fields`, or page). Non-grid results pass through untouched (we can't
@@ -386,8 +381,8 @@ function widgetPageSize(toolName: string): number | undefined {
  */
 const SAFE_RESULT_BYTES = 800_000;
 
-export function enforceResultSizeLimit(result: any, hasWidget: boolean): any {
-  if (!hasWidget || !result || typeof result !== 'object') return result;
+export function enforceResultSizeLimit(result: any, hasStructuredContent: boolean): any {
+  if (!hasStructuredContent || !result || typeof result !== 'object') return result;
   if (Buffer.byteLength(JSON.stringify(result), 'utf8') <= SAFE_RESULT_BYTES) return result;
 
   const { grid } = extractCollection(result);
@@ -412,11 +407,18 @@ export function enforceResultSizeLimit(result: any, hasWidget: boolean): any {
   return result;
 }
 
+/**
+ * Describe where a paged result sits in its collection: which page came back,
+ * how big a page is, how many rows exist in total, and whether another page is
+ * available. Emitted in the response `_meta` so a caller can decide whether to
+ * ask for page N+1 without re-deriving any of it. Returns null when the result
+ * carries no grid (error / empty).
+ */
 export function buildPaginationCursor(toolName: string, args: any, result: any): any | null {
   const { grid } = extractCollection(result);
   if (!grid) return null;
   const page = grid.page ?? args?.page ?? 1;
-  const perPage = grid.per_page ?? widgetPageSize(toolName) ?? DEFAULT_WIDGET_PAGE_SIZE;
+  const perPage = grid.per_page ?? toolPageSize(toolName) ?? DEFAULT_PAGE_SIZE;
   const total = grid.total ?? grid.rows.length;
   return {
     tool: toolName,
@@ -464,38 +466,38 @@ export function setupEnhancedHandlers(
         const reportProgress = makeProgressReporter(extra);
         reportProgress(0, 1, 'fetching');
         try {
-          // Widget-paginated tools: set a per-page so each page stays light
-          // enough for the host to deliver to the widget (the widget pages
-          // through the rest via callServerTool). Hard-capped tools clamp the
+          // Paged tools: set a per-page so each page stays light enough for
+          // the host to deliver in one result. Hard-capped tools clamp the
           // model's limit to the page size; the rest treat it as a default the
           // model may exceed (e.g. conversions export — projection keeps it
           // light). page defaults to 1.
           let effectiveArgs = args ?? {};
-          const pageSize = widgetPageSize(name);
+          const pageSize = toolPageSize(name);
           if (pageSize) {
             const requested = Number(effectiveArgs.limit) || pageSize;
-            const limit = HARD_CAPPED_WIDGET_TOOLS.has(name) ? Math.min(requested, pageSize) : requested;
+            const limit = HARD_CAPPED_PAGED_TOOLS.has(name) ? Math.min(requested, pageSize) : requested;
             effectiveArgs = { ...effectiveArgs, limit, page: effectiveArgs.page ?? 1 };
           }
           let result = await toolHandler.executeTool(name, effectiveArgs);
           // Last-resort guard: never hand the host a result over its hard
-          // ceiling (ChatGPT errors at 1 MB). Truncates rows + tells the model
-          // how to recover (narrow `fields`, or page).
+          // ceiling. Truncates rows + tells the model how to recover (narrow
+          // `fields`, or page).
           result = enforceResultSizeLimit(result, hasOutputSchema);
           reportProgress(1, 1, 'done');
-          // Full data always rides in structuredContent for the widget. The
-          // model-facing text collapses to a summary when a widget-backed
-          // result is too large to inline — otherwise the host offloads it to
-          // a file and the model can't reason over it (see buildModelText).
+          // When a tool declares an outputSchema the full data rides in
+          // structuredContent, so the model-facing text may collapse to a
+          // summary once it grows too large to inline — otherwise the host
+          // offloads it to a file and the model can't reason over it (see
+          // buildModelText).
           const response: any = {
             content: [{ type: 'text' as const, text: buildModelText(result, hasOutputSchema) }],
           };
           if (hasOutputSchema) {
             response.structuredContent = result;
           }
-          // Pagination cursor for the widget's "load more" (ext-apps
-          // callServerTool). Lives in result `_meta` because the widget's
-          // ontoolinput sees the args but not the tool name.
+          // Pagination cursor: tells the caller whether another page exists
+          // and what to ask for. Lives in the response `_meta`, not the
+          // payload, so it does not disturb the tool's own result shape.
           if (pageSize && result?.status === 'ok') {
             const cursor = buildPaginationCursor(name, effectiveArgs, result);
             if (cursor) response._meta = { ...(response._meta ?? {}), 'affise/pagination': cursor };

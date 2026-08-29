@@ -54,7 +54,7 @@ describe('buildPaginationCursor', () => {
     expect(buildPaginationCursor('affise_list_partners', {}, { status: 'error', message: 'boom' })).toBeNull();
   });
 
-  it('carries the canonical args so the widget can replay filters on the next page', () => {
+  it('carries the canonical args so a caller can replay filters on the next page', () => {
     const args = { status: 'active', manager: ['m1'], limit: 100, page: 1 };
     const c = buildPaginationCursor('affise_list_advertisers', args, gridResult(100, 500));
     expect(c.args).toEqual(args);

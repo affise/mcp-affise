@@ -176,12 +176,11 @@ export const TABULAR_OUTPUT_SCHEMA = {
  *
  * Declaring an output schema is what makes McpServer.registerTool populate
  * the response's `structuredContent` field alongside the JSON-stringified
- * `content[0].text`. Some MCP hosts (notably Claude.ai web) deliver the
- * structuredContent object — not the text payload — to widget iframes via
- * `ontoolresult`, so an offer-search tool without an outputSchema lands in
- * the widget as an empty result. Keeping the shape permissive (`offers` as
- * `unknown[]` rather than a full Offer schema) lets us evolve the underlying
- * tool response without churning the schema or the widget.
+ * `content[0].text`. Hosts that render structured results read that object
+ * rather than the text payload, so a tool without an outputSchema gives them
+ * nothing to render. Keeping the shape permissive (`offers` as `unknown[]`
+ * rather than a full Offer schema) lets us evolve the underlying tool
+ * response without churning the schema.
  */
 export const OFFER_SEARCH_OUTPUT_SCHEMA = {
   status: z.string().describe("'ok' on success, 'error' on a handled failure"),

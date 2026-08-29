@@ -67,7 +67,7 @@ describe('enforceResultSizeLimit', () => {
     expect(out.metadata.truncated.hint).toMatch(/fields|page/);
   });
 
-  it('leaves results alone when there is no widget', () => {
+  it('leaves results alone when there is no structuredContent', () => {
     const r = bigGridResult(20000, 20);
     const before = r.data.rows.length;
     enforceResultSizeLimit(r, false);

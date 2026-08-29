@@ -480,7 +480,7 @@ export async function getAffiseCustomStats(
         ? Object.fromEntries(Object.entries(o).filter(([k]) => !OFFER_DROP.has(k)))
         : o;
     // Entities sit under `row.slice.<entity>` (compactTabular emits
-    // `slice.<entity>.*`; the widget strips the `slice.` prefix for display).
+    // `slice.<entity>.*`, so a display layer strips the `slice.` prefix).
     const stats = Array.isArray(data?.stats)
       ? data.stats.map((row: any) => {
           if (!row?.slice || typeof row.slice !== 'object') return row;

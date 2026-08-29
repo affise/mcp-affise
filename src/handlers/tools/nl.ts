@@ -76,8 +76,7 @@ export const handleOfferSearch: ToolHandler = async (args, config, deps): Promis
       status: 'ok',
       message: result.message || `Found ${result.itemsRetrieved || 0} offers`,
       // Slim each offer to card fields — the full /3.0/offers entries are
-      // ~250 KB/30 and overflow the host's inline budget (offers-list widget
-      // then renders empty). See toOfferCards.
+      // ~250 KB/30 and overflow the host's inline budget. See toOfferCards.
       offers: toOfferCards(result.data),
       total_found: result.totalItems || 0,
       has_more_results: result.canContinue || false,

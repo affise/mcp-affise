@@ -18,7 +18,7 @@ import { compactTabular, projectGridColumns } from '../utils/compact-response.js
 /**
  * Default column set for the conversions list/export. A raw conversion has
  * ~77 non-empty columns; returning all of them for 1000 rows blows past the
- * host's 1 MB tool-result ceiling and is unreadable in the grid widget. This
+ * host's 1 MB tool-result ceiling and is unreadable as a table. This
  * curated set covers what a conversion list/export actually needs; callers
  * override it with the `fields` param, and the full record is available via
  * `affise_get_conversion`. Names are the flattened grid column names.

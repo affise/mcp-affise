@@ -4,9 +4,8 @@
  *   2. /3.0/stats/trafficback   (filtered to the affiliate)
  *   3. /3.0/admin/partner/{id}  (login/status for the header)
  * then computes account KPIs, a per-offer breakdown, a trafficback reason
- * split, and deterministic rule-based insights. The result feeds the
- * affiliate-analysis MCP-UI widget; free-form recommendations stay with the
- * model in chat.
+ * split, and deterministic rule-based insights. Everything the tool returns is
+ * computed, not written; free-form recommendations stay with the model in chat.
  *
  * NOTE: no `order[]` is sent to /stats/custom — sorting by revenue keys 500s
  * on some tenants (see the 2026-07-07 bisect); offers are sorted client-side.

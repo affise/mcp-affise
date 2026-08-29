@@ -73,11 +73,11 @@ export async function listPartners(
 
     // Strip secrets + heavy/low-value fields before flattening. Critically,
     // partners (and their nested `manager`) carry an `api_key` — never expose
-    // it through a list payload that lands in the model context + widget.
+    // it through a list payload that lands in the model context.
     // customFields / payment_systems / avatar / etc. are bulky and useless in
     // a list overview; dropping them keeps the result under the host's inline
-    // budget (full payload is ~91 KB / 34 cols → the stats-grid widget's
-    // tool-result gets offloaded and renders empty).
+    // budget (full payload is ~91 KB / 34 cols, which the host offloads to
+    // a file instead of delivering inline).
     const sanitized = redactKeys(partners, [
       'api_key', 'customFields', 'payment_systems',
       'notes', 'tipalti_idap', 'avatar', 'skype', 'roles',

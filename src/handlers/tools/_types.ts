@@ -15,16 +15,15 @@ export type AffiseConfig =
       baseUrl: string;
       apiKey: string;
       /**
-       * Caller's Affise role when the resolved creds came from an OAuth /
-       * JWT session (NOT set for the static-token path or stdio config).
-       * Most handlers ignore this; the auth tool reports it back to the
-       * widget.
+       * Caller's Affise role. Never set on this stdio distribution, which
+       * resolves credentials from config only; the field exists so the
+       * handler signatures stay identical to the internal server's.
        */
       role?: 'admin' | 'partner' | 'advertiser' | 'unknown';
       /**
-       * Encrypted-session id when the creds came from an OAuth / JWT
-       * session. Lets the auth tool rotate stored creds for that session
-       * after re-validation. Undefined on static-token / stdio paths.
+       * Session id for a credential store that can be rotated at runtime.
+       * Always undefined on this stdio distribution; kept for signature
+       * parity with the internal server.
        */
       sessionId?: string;
     }

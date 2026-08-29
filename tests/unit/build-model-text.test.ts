@@ -23,13 +23,15 @@ describe('buildModelText', () => {
     expect(JSON.parse(text)).toEqual(result); // unchanged
   });
 
-  it('passes large payloads through unchanged when there is no widget', () => {
+  it('passes large payloads through unchanged when there is no structuredContent', () => {
     const result = gridResult(280);
     const text = buildModelText(result, false);
-    expect(JSON.parse(text)).toEqual(result); // no summarization without a widget
+    // Without structuredContent the text block is the only copy of the data,
+    // so collapsing it would lose rows outright.
+    expect(JSON.parse(text)).toEqual(result);
   });
 
-  it('collapses a large widget-backed grid to a summary + sample', () => {
+  it('collapses a large grid to a summary + sample when structuredContent carries the rows', () => {
     const result = gridResult(280);
     const parsed = JSON.parse(buildModelText(result, true));
 
@@ -42,7 +44,12 @@ describe('buildModelText', () => {
     expect(parsed.summary.dropped_columns).toEqual(['notes', 'avatar']);
     // only a handful of sample rows, not all 280
     expect(parsed.sample_rows).toHaveLength(5);
-    expect(parsed.note).toContain('rendered in the widget');
+    // The note must point the model at where the full rows actually are.
+    // It used to say "rendered in the widget" — this package ships no widget,
+    // so that sent the model re-querying with narrower filters for data it
+    // had already been handed in structuredContent.
+    expect(parsed.note).toContain('structuredContent');
+    expect(parsed.note).not.toMatch(/widget/i);
     // full row set must NOT be inlined
     expect(parsed.data).toBeUndefined();
   });

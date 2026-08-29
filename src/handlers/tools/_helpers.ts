@@ -41,16 +41,15 @@ export function calculateSummary(
 }
 
 /**
- * Project a full Affise offer down to the fields the offers-list widget
- * card (and the model's text summary) actually read.
+ * Project a full Affise offer down to the fields an offer card (and the
+ * model's text summary) actually read.
  *
  * WHY: `/3.0/offers` returns ~8-10 KB per offer — the bulk is `landings[]`
  * (~5.6 KB) and the full `payments[]` table (~4 KB, 20+ keys each incl.
  * sub1..sub8, devices, cities). A 30-offer search is ~250 KB and a
  * smart-search (maxSampleSize 100) is far larger. That overflows the host's
  * inline tool-result budget, so the result gets offloaded to disk and the
- * widget's `ontoolresult` receives a "too large" placeholder instead of the
- * offers — the card grid renders empty.
+ * caller receives a "too large" placeholder instead of the offers.
  *
  * The card needs only: title, numeric id, status/privacy, a one-line payout
  * (first payment's revenue/currency/type + count), country chips, category

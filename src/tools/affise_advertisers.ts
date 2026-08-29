@@ -85,7 +85,7 @@ export async function listAdvertisers(
 
     // Strip secrets + heavy/low-value fields before flattening — advertisers
     // (and nested manager) carry `api_key`, which must never reach the model
-    // context or widget. Mirrors the list_partners sanitisation.
+    // context. Mirrors the list_partners sanitisation.
     const sanitized = redactKeys(advertisers, [
       'api_key', 'customFields', 'payment_systems',
       'notes', 'tipalti_idap', 'avatar', 'skype', 'roles',
