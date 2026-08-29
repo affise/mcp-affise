@@ -220,6 +220,37 @@ describe('wire surface vs the 2.1.0 baseline', () => {
     }
   }, 40_000);
 
+  it('never drops documentation a published prompt argument already had', async () => {
+    // The v3.0 prompt layer leaves `.describe()` off 30 of auto_analysis's 42
+    // arguments; 2.1.0 documented all of them. Porting verbatim would have
+    // shipped a strictly worse surface — a model calling the prompt would see
+    // `date_from` and `stats_fields` with no explanation. Argument descriptions
+    // are on the changed-allowlist so wording can move, but losing one is not
+    // a wording change.
+    const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
+    const captured = await capture();
+    const live = new Map<string, any>(
+      captured[2].result.prompts.map((p: any) => [p.name, p]),
+    );
+
+    const regressed: string[] = [];
+    for (const goldenPrompt of golden.prompts) {
+      const livePrompt = live.get(goldenPrompt.name);
+      if (!livePrompt) continue;
+      const liveArgs = new Map<string, any>(
+        (livePrompt.arguments ?? []).map((a: any) => [a.name, a]),
+      );
+      for (const arg of goldenPrompt.arguments ?? []) {
+        if (!arg.description) continue;
+        const liveArg = liveArgs.get(arg.name);
+        if (liveArg && !liveArg.description) {
+          regressed.push(`${goldenPrompt.name}.${arg.name}`);
+        }
+      }
+    }
+    expect(regressed, 'prompt arguments that lost their description').toEqual([]);
+  }, 40_000);
+
   it('does not regrow a widget surface', async () => {
     const captured = await capture();
     const payload = JSON.stringify(captured[1]);
