@@ -44,8 +44,53 @@ const ALLOWED_NEW_TOOLS = new Set<string>([
   'affise_affiliate_analysis',
 ]);
 
-/** Capability keys that may differ on `initialize`. */
-const ALLOWED_CAPABILITY_CHANGES = new Set(['tools']);
+/**
+ * Prompt-level fields that may appear on a prompt the golden does not have.
+ *
+ * `title` is emitted by McpServer.registerPrompt from its config object. The
+ * 2.1.0 surface was a hand-written `prompts` array behind
+ * `setRequestHandler(ListPromptsRequestSchema)`, which had nowhere to put one.
+ */
+const ALLOWED_ADDED_PROMPT_FIELDS = new Set(['title']);
+
+/**
+ * Argument-level fields whose value may differ from the golden.
+ *
+ * Only `description`, and it covers disappearing as well as changing: the
+ * v3.0 argsSchemas reword most of these and leave `.describe()` off some
+ * arguments entirely, so the SDK emits no `description` key for them.
+ * `name` and `required` stay strict — those are the contract.
+ */
+const ALLOWED_CHANGED_ARG_FIELDS = new Set(['description']);
+
+/**
+ * Arguments added to an existing prompt since the baseline, per prompt.
+ *
+ * v3.0's `analyze_stats` argsSchema exposes the full `/stats/custom` filter
+ * surface; 2.1.0 listed a 17-argument subset. Like ALLOWED_NEW_TOOLS this is
+ * a requirement as well as a permission — an argument named here that the
+ * server stops serving fails the gate, so the expansion cannot be reverted
+ * silently.
+ */
+const ALLOWED_NEW_PROMPT_ARGS: Record<string, string[]> = {
+  analyze_stats: [
+    'advertiser_manager_id', 'affiliate', 'affiliate_manager_id', 'city',
+    'os', 'os_version', 'browser', 'browser_version', 'device', 'device_model',
+    'conn_type', 'isp', 'landing', 'prelanding', 'smart_id',
+    'sub1', 'sub2', 'sub3', 'sub4', 'sub5', 'sub6', 'sub7', 'sub8',
+    'goal', 'trafficback_reason', 'conversionTypes', 'nonzero',
+    'page', 'orderType', 'order', 'locale',
+  ],
+};
+
+/**
+ * Capability keys that may differ on `initialize`.
+ *
+ * `prompts` joined `tools` in Phase 4: registerPrompt calls
+ * registerCapabilities({prompts: {listChanged: true}}), where the hand-wired
+ * setRequestHandler path left the declared `{}` untouched.
+ */
+const ALLOWED_CAPABILITY_CHANGES = new Set(['tools', 'prompts']);
 
 const rpc = (id: number | null, method: string, params?: unknown) =>
   JSON.stringify(params === undefined
@@ -186,13 +231,67 @@ describe('wire surface vs the 2.1.0 baseline', () => {
     const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
     const captured = await capture();
 
-    // The golden was captured with prompts sorted by name; the live server
-    // returns them in registration order. Order is not part of the contract.
-    const byName = (list: any[]) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+    // Prompts are compared by name in both directions; neither the prompt
+    // order nor the argument order is part of the contract.
+    const goldenPrompts = new Map<string, any>(golden.prompts.map((p: any) => [p.name, p]));
+    const livePrompts = new Map<string, any>(captured[2].result.prompts.map((p: any) => [p.name, p]));
+
     expect(
-      same(byName(captured[2].result.prompts), byName(golden.prompts)),
-      'prompt list changed',
-    ).toBe(true);
+      [...goldenPrompts.keys()].filter((n) => !livePrompts.has(n)),
+      'prompts disappeared from the published surface',
+    ).toEqual([]);
+    expect(
+      [...livePrompts.keys()].filter((n) => !goldenPrompts.has(n)),
+      'undeclared new prompts',
+    ).toEqual([]);
+
+    const promptViolations: string[] = [];
+    for (const [name, goldenPrompt] of goldenPrompts) {
+      const live = livePrompts.get(name);
+
+      for (const field of new Set([...Object.keys(goldenPrompt), ...Object.keys(live)])) {
+        if (field === 'arguments') continue;
+        if (!(field in goldenPrompt)) {
+          if (!ALLOWED_ADDED_PROMPT_FIELDS.has(field)) {
+            promptViolations.push(`${name}: field '${field}' appeared`);
+          }
+        } else if (!(field in live)) {
+          promptViolations.push(`${name}: field '${field}' disappeared`);
+        } else if (!same(goldenPrompt[field], live[field])) {
+          promptViolations.push(`${name}: field '${field}' changed`);
+        }
+      }
+
+      const goldenArgs = new Map<string, any>((goldenPrompt.arguments ?? []).map((a: any) => [a.name, a]));
+      const liveArgs = new Map<string, any>((live.arguments ?? []).map((a: any) => [a.name, a]));
+      const declaredNew = new Set(ALLOWED_NEW_PROMPT_ARGS[name] ?? []);
+
+      for (const argName of goldenArgs.keys()) {
+        if (!liveArgs.has(argName)) promptViolations.push(`${name}: argument '${argName}' disappeared`);
+      }
+      for (const argName of liveArgs.keys()) {
+        if (!goldenArgs.has(argName) && !declaredNew.has(argName)) {
+          promptViolations.push(`${name}: undeclared new argument '${argName}'`);
+        }
+      }
+      for (const argName of declaredNew) {
+        if (!liveArgs.has(argName)) {
+          promptViolations.push(`${name}: argument '${argName}' declared in ALLOWED_NEW_PROMPT_ARGS but not served`);
+        }
+      }
+
+      for (const [argName, goldenArg] of goldenArgs) {
+        const liveArg = liveArgs.get(argName);
+        if (!liveArg) continue;
+        for (const field of new Set([...Object.keys(goldenArg), ...Object.keys(liveArg)])) {
+          if (ALLOWED_CHANGED_ARG_FIELDS.has(field)) continue;
+          if (!same(goldenArg[field], liveArg[field])) {
+            promptViolations.push(`${name}.${argName}: '${field}' changed`);
+          }
+        }
+      }
+    }
+    expect(promptViolations, 'unexpected prompt-surface changes').toEqual([]);
 
     // The golden stores the initialize *result*, not the enclosing JSON-RPC
     // envelope. Tolerate either shape so a re-capture that keeps the envelope
