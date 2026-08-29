@@ -306,8 +306,17 @@ describe('wire surface vs the 2.1.0 baseline', () => {
         }
       }
       for (const argName of declaredNew) {
-        if (!liveArgs.has(argName)) {
+        const liveArg = liveArgs.get(argName);
+        if (!liveArg) {
           promptViolations.push(`${name}: argument '${argName}' declared in ALLOWED_NEW_PROMPT_ARGS but not served`);
+          continue;
+        }
+        // The allowlist permits an argument to exist; it does not permit that
+        // argument to become mandatory. A new arg turning required is a
+        // client-breaking wire change — every prompts/get call that omitted it
+        // starts failing — and without this the gate stayed green for it.
+        if (liveArg.required) {
+          promptViolations.push(`${name}: newly-added argument '${argName}' became required`);
         }
       }
 

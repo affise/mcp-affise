@@ -51,6 +51,18 @@ const asNumber = (value: unknown): number | undefined =>
 const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined =>
   typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : undefined;
 
+/** Every prompt this module registers. Exported so callers can report the
+ *  count without restating it — the tool half of the startup banner was
+ *  derived in an earlier commit and the prompt half was left a literal. */
+export const PROMPT_NAMES = [
+  'analyze_offers',
+  'analyze_trafficback',
+  'analyze_conversions',
+  'analyze_stats',
+  'workflow_analysis',
+  'auto_analysis',
+] as const;
+
 // --- Setup ------------------------------------------------------------------
 
 export function setupPromptHandlers(

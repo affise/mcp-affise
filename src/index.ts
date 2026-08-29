@@ -6,7 +6,7 @@ import { McpServer, StdioServerTransport } from './mcp-sdk.js';
 import { loadConfig, getConfigStatus, clearSecureConfig } from './config.js';
 import { setupEnhancedHandlers } from './handlers/enhanced-tools.js';
 import { TOOL_SCHEMAS } from './handlers/tool-schemas.js';
-import { setupPromptHandlers } from './handlers/prompts.js';
+import { setupPromptHandlers, PROMPT_NAMES } from './handlers/prompts.js';
 import { ErrorHandlerService } from './services/error-handler-service.js';
 
 // Initialize error handler for global error sanitization
@@ -140,7 +140,7 @@ async function main() {
     setupEnhancedHandlers(mcpServer, config);
     setupPromptHandlers(mcpServer, config);
     console.error('[affise-mcp] handlers registered ('
-      + Object.keys(TOOL_SCHEMAS).length + ' tools + 6 prompts)');
+      + Object.keys(TOOL_SCHEMAS).length + ' tools + ' + PROMPT_NAMES.length + ' prompts)');
   } else {
     setupStatusTool(server);
     console.error('[affise-mcp] status-only handler registered');
