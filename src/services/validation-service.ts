@@ -474,7 +474,13 @@ export class ValidationService {
       if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
         const monthsDiff = (to.getFullYear() - from.getFullYear()) * 12 +
                            (to.getMonth() - from.getMonth());
-        if (monthsDiff > 6) {
+        // Day-of-month matters: counting calendar months alone lets
+        // 2026-01-01 → 2026-07-30 through as "6 months" when it is 210 days,
+        // and the request then fails server-side instead of here. Landing on a
+        // later day of the month means the sixth month is already over.
+        const exceedsSixMonths = monthsDiff > 6 ||
+                                 (monthsDiff === 6 && to.getDate() > from.getDate());
+        if (exceedsSixMonths) {
           throw new Error('Date range exceeds 6 months (Affise MAX_DATERANGE_MONTHS)');
         }
       }

@@ -130,5 +130,25 @@ describe('ValidationService.normalizeStatsParams', () => {
         date_to: '2026-08-01',
       })).toThrow(/6 months/);
     });
+
+    it('throws on a range that clears six calendar months but not six months of days', () => {
+      // 210 days. Counting calendar months alone makes this "6" and lets it
+      // through, and the request then fails server-side instead of here.
+      expect(() => v.normalizeStatsParams({
+        slice: ['day'],
+        date_from: '2026-01-01',
+        date_to: '2026-07-30',
+      })).toThrow(/6 months/);
+    });
+
+    it('allows a span that touches seven calendar months but is under six months of days', () => {
+      // 2026-01-31 -> 2026-07-30 is 180 days; the day-of-month check must not
+      // reject it just because the month numbers differ by six.
+      expect(() => v.normalizeStatsParams({
+        slice: ['day'],
+        date_from: '2026-01-31',
+        date_to: '2026-07-30',
+      })).not.toThrow();
+    });
   });
 });
