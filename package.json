@@ -18,7 +18,7 @@
     "rebuild": "npm run clean && npm run build",
     "test": "npm run build:unsafe && vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "npm run build:unsafe && vitest run --coverage",
     "test:unit": "vitest run tests/unit tests/services",
     "test:integration": "npm run build:unsafe && vitest run tests/integration",
     "security:audit": "npm audit --audit-level moderate",
