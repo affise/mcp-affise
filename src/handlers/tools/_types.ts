@@ -45,8 +45,8 @@ export interface HandlerDeps {
  *
  * `config` is the *resolved* credential pair — the orchestrator picks
  * `sessionConfig ?? staticConfig` before calling. Handlers still validate
- * `config.baseUrl && config.apiKey` for safety because some entry points
- * (affise_status especially) can be called without any creds at all.
+ * `config.baseUrl && config.apiKey` for safety because a partly-set
+ * environment still yields a config object, just with empty fields.
  */
 export type ToolHandler = (
   args: any,

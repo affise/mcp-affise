@@ -1,14 +1,14 @@
 /**
- * Unit tests for `affise_status`.
+ * Unit tests for `createAffiseStatusTool` — the internal Affise reachability
+ * probe. It hits `OPTIONS {baseUrl}/healthz` with an api-key header and maps
+ * every known transport failure (`ECONNREFUSED` / `ETIMEDOUT` / `ENOTFOUND` /
+ * HTTP error response) onto a structured error envelope.
  *
- * Two layers under test:
- *  1. `createAffiseStatusTool` — the underlying probe that hits
- *     `OPTIONS {baseUrl}/healthz` with an api-key header and maps every
- *     known transport failure (`ECONNREFUSED` / `ETIMEDOUT` / `ENOTFOUND` /
- *     HTTP error response) onto a structured error envelope.
- *  2. `handleStatus` — the tool dispatcher entry, asserts config guards
- *     (`config: null` returns a config-missing error without ever calling
- *     axios) and the success/error mapping wraps the probe payload.
+ * No longer an MCP tool: the model-facing `affise_status` was dropped because
+ * an OPTIONS probe against an unauthenticated liveness path answers the same
+ * way for a valid and an invalid API key. The probe stayed because
+ * `performHealthCheck()` is built on it, and because the unconfigured stdio
+ * surface still offers a setup-instructions tool under that name.
  *
  * Filled in 2026-05-25 as part of the Phase 1 follow-up that closed the
  * 3 missing-test gaps surfaced by the tool-contract reviewer.
@@ -21,18 +21,8 @@ vi.mock('axios');
 const mockedAxios = axios as Mocked<typeof axios>;
 
 import { createAffiseStatusTool } from '../../src/tools/affise_status.js';
-import { handleStatus } from '../../src/handlers/tools/nl.js';
-import { ErrorHandlerService } from '../../src/services/error-handler-service.js';
-import { ValidationService } from '../../src/services/validation-service.js';
 
 const CFG = { baseUrl: 'https://api.example.com', apiKey: 'test-key' };
-
-function deps() {
-  return {
-    errorHandler: new ErrorHandlerService(),
-    validator: new ValidationService(),
-  };
-}
 
 describe('createAffiseStatusTool — probe layer', () => {
   beforeEach(() => {
@@ -109,43 +99,5 @@ describe('createAffiseStatusTool — probe layer', () => {
     expect(r.status).toBe('error');
     expect(r.statusCode).toBe(503);
     expect(r.message).toContain('Service unavailable');
-  });
-});
-
-describe('handleStatus — tool dispatcher entry', () => {
-  beforeEach(() => {
-    (mockedAxios.options as Mock).mockReset();
-  });
-
-  it('returns config-missing error when config is null (no axios call)', async () => {
-    const r = await handleStatus({}, null, deps());
-
-    expect(r.status).toBe('error');
-    expect(r.message).toMatch(/no configuration/i);
-    expect((mockedAxios.options as Mock).mock.calls).toHaveLength(0);
-  });
-
-  it('wraps a successful probe in {status, message, data: {...probe payload}, timestamp}', async () => {
-    (mockedAxios.options as Mock).mockResolvedValueOnce({ status: 204 } as never);
-
-    const r = await handleStatus({}, CFG, deps());
-
-    expect(r.status).toBe('ok');
-    expect(r.message).toContain('successful');
-    expect(r.data?.status).toBe('ok');
-    expect(r.data?.timestamp).toBeTruthy();
-    expect(r.timestamp).toBeTruthy();
-  });
-
-  it('forwards probe error envelope verbatim (status=error, data has the failure detail)', async () => {
-    const err: any = new Error('boom');
-    err.code = 'ECONNREFUSED';
-    (mockedAxios.options as Mock).mockRejectedValueOnce(err as never);
-
-    const r = await handleStatus({}, CFG, deps());
-
-    expect(r.status).toBe('error');
-    // Probe builds its own message; the dispatcher passes both through.
-    expect(r.data?.message).toMatch(/refused the connection/i);
   });
 });

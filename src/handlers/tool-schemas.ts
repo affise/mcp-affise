@@ -15,7 +15,6 @@
  */
 
 import {
-  affise_status,
   affise_search_offers,
   affise_stats,
   affise_smart_search,
@@ -51,8 +50,7 @@ import {
 } from './schemas/partner.js';
 
 export const TOOL_SCHEMAS = {
-  // NL / status
-  affise_status,
+  // NL
   affise_search_offers,
   affise_stats,
   affise_smart_search,

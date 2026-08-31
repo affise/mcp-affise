@@ -422,9 +422,8 @@ Would you like to proceed with the complete dataset or analyze the sample?`
               text: `I attempted to retrieve Affise data but encountered errors: ${errors.join(', ')}
 
 Please check your Affise API configuration and try again. You can:
-1. Use the \`affise_status\` tool to verify connectivity
-2. Manually use individual tools (\`affise_search_offers\`, \`affise_stats\`, \`affise_trafficback\`)
-3. Check your API credentials in the .env file
+1. Manually use individual tools (\`affise_search_offers\`, \`affise_stats\`, \`affise_trafficback\`)
+2. Check your API credentials in the .env file
 
 Parameters that failed:
 - Data Type: ${data_type}
@@ -641,12 +640,11 @@ Conduct a systematic analysis following this enhanced framework and provide comp
             text: `I encountered an error while trying to automatically retrieve and analyze data: ${error}
 
 Please try one of these alternatives:
-1. Use the \`affise_status\` tool to check API connectivity
-2. Manually use individual tools:
+1. Manually use individual tools:
    - \`affise_search_offers\` for offer analysis
    - \`affise_stats\` for performance statistics
    - \`affise_trafficback\` for trafficback analysis
-3. Check your configuration and try with simpler parameters
+2. Check your configuration and try with simpler parameters
 
 Attempted configuration:
 - Data Type: ${data_type}

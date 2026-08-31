@@ -21,7 +21,7 @@ const seen: Array<{ baseUrl?: string; apiKey?: string; [k: string]: unknown } | 
 
 vi.mock('../../src/handlers/tools/index.js', () => ({
   HANDLER_REGISTRY: {
-    affise_status: async (_args: unknown, config: any) => {
+    affise_offer_categories: async (_args: unknown, config: any) => {
       seen.push(config);
       return { status: 'success', message: 'ok', data: {}, timestamp: new Date().toISOString() };
     },
@@ -51,7 +51,7 @@ describe('config resolution across the accessor seam', () => {
   it('hands the handler a usable apiKey when the config exposes it as a getter', async () => {
     const handler = new EnhancedToolHandler(new AccessorBackedConfig(CREDS) as any);
 
-    await handler.executeTool('affise_status', {});
+    await handler.executeTool('affise_offer_categories', {});
 
     expect(seen).toHaveLength(1);
     expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
@@ -61,7 +61,7 @@ describe('config resolution across the accessor seam', () => {
   it('does the same for a per-request session that exposes getters', async () => {
     const handler = new EnhancedToolHandler(null);
 
-    await handler.executeTool('affise_status', {}, new AccessorBackedConfig(CREDS) as any);
+    await handler.executeTool('affise_offer_categories', {}, new AccessorBackedConfig(CREDS) as any);
 
     expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
   });
@@ -71,7 +71,7 @@ describe('config resolution across the accessor seam', () => {
       new AccessorBackedConfig({ ...CREDS, baseUrl: `${CREDS.baseUrl}/` }) as any,
     );
 
-    await handler.executeTool('affise_status', {});
+    await handler.executeTool('affise_offer_categories', {});
 
     expect(seen[0]?.baseUrl).toBe(CREDS.baseUrl);
     expect(seen[0]?.apiKey).toBe(CREDS.apiKey);
@@ -80,7 +80,7 @@ describe('config resolution across the accessor seam', () => {
   it('preserves extra fields on a plain session object', async () => {
     const handler = new EnhancedToolHandler(null);
 
-    await handler.executeTool('affise_status', {}, { ...CREDS, sessionId: 'sess-123' } as any);
+    await handler.executeTool('affise_offer_categories', {}, { ...CREDS, sessionId: 'sess-123' } as any);
 
     expect(seen[0]?.sessionId).toBe('sess-123');
     expect(seen[0]?.apiKey).toBe(CREDS.apiKey);

@@ -339,6 +339,5 @@ Validate parameters before API calls.
 
 - `affise_search_offers`: Use category IDs from this tool to filter offers
 - `affise_stats`: Analyze performance by category (natural-language query)
-- `affise_status`: Check API connectivity before using this tool
 
 This tool is essential for understanding and working with the Affise category structure, enabling more effective offer management and analysis workflows.

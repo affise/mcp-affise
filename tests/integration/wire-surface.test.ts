@@ -45,6 +45,23 @@ const ALLOWED_NEW_TOOLS = new Set<string>([
 ]);
 
 /**
+ * Tools deliberately withdrawn since the baseline.
+ *
+ * Like ALLOWED_NEW_TOOLS this is a requirement as well as a permission: a name
+ * here that the server still serves fails the gate, so an entry cannot outlive
+ * the removal it documents.
+ */
+const ALLOWED_REMOVED_TOOLS = new Set<string>([
+  // affise_status: an OPTIONS probe against {base_url}/healthz, an
+  // unauthenticated liveness path. It answered the same way for a valid and an
+  // invalid API key, so it could not diagnose the failure users actually hit,
+  // and every other tool already maps the same transport errors. The probe
+  // itself survives behind performHealthCheck() and behind the unconfigured
+  // stdio fallback, neither of which is on this wire surface.
+  'affise_status',
+]);
+
+/**
  * Prompt-level fields that may appear on a prompt the golden does not have.
  *
  * `title` is emitted by McpServer.registerPrompt from its config object. The
@@ -218,7 +235,15 @@ describe('wire surface vs the 2.1.0 baseline', () => {
     const liveTools = new Map<string, any>(captured[1].result.tools.map((t: any) => [t.name, t]));
 
     const removed = [...goldenTools.keys()].filter((n) => !liveTools.has(n));
-    expect(removed, 'tools disappeared from the published surface').toEqual([]);
+    expect(
+      removed.filter((n) => !ALLOWED_REMOVED_TOOLS.has(n)),
+      'tools disappeared from the published surface',
+    ).toEqual([]);
+
+    // Same both-directions rule as ALLOWED_NEW_TOOLS: a withdrawal that gets
+    // reverted must fail here rather than leave a stale allowlist entry.
+    const resurrected = [...ALLOWED_REMOVED_TOOLS].filter((n) => liveTools.has(n));
+    expect(resurrected, 'tools declared in ALLOWED_REMOVED_TOOLS but still served').toEqual([]);
 
     const added = [...liveTools.keys()].filter((n) => !goldenTools.has(n));
     expect(added.filter((n) => !ALLOWED_NEW_TOOLS.has(n)), 'undeclared new tools').toEqual([]);
@@ -234,6 +259,7 @@ describe('wire surface vs the 2.1.0 baseline', () => {
     const violations: string[] = [];
     for (const [name, goldenTool] of goldenTools) {
       const live = liveTools.get(name);
+      if (!live) continue;   // withdrawn above, and already accounted for
       for (const field of new Set([...Object.keys(goldenTool), ...Object.keys(live)])) {
         if (!(field in goldenTool)) {
           if (!ALLOWED_ADDED_FIELDS.has(field)) violations.push(`${name}: field '${field}' appeared`);

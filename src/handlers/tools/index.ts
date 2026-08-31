@@ -15,7 +15,6 @@
 
 import type { ToolHandler } from './_types.js';
 import {
-  handleStatus,
   handleOfferSearch,
   handleStatsNL,
   handleSmartSearch,
@@ -51,8 +50,7 @@ import {
 } from './partner.js';
 
 export const HANDLER_REGISTRY: Record<string, ToolHandler> = {
-  // NL / status
-  affise_status:               handleStatus,
+  // NL
   affise_search_offers:        handleOfferSearch,
   affise_stats:                handleStatsNL,
   affise_smart_search:         handleSmartSearch,

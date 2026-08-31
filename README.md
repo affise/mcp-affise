@@ -8,10 +8,9 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 
 ## Features
 
-### 🔧 Tools (25 total)
+### 🔧 Tools (24 total)
 
 **Status & search**
-- **`affise_status`** — Check Affise API connectivity and configuration
 - **`affise_search_offers`** — Search offers with natural-language queries (e.g. *"find gaming offers for US mobile"*)
 - **`affise_smart_search`** 🧠 — Intelligent offer search with auto category/country resolution
 - **`affise_offer_categories`** — List/search offer categories
@@ -154,7 +153,7 @@ npm run validate-dxt    # Validate package
    - Find "Affise Analytics Extension" in your extensions
    - Set your Affise API URL (e.g., `https://api-yourcompany.affise.com`)
    - Set your Affise API Key
-5. **Test**: Try using the `affise_status` tool in Claude Desktop
+5. **Test**: Ask Claude Desktop for your offer categories
 
 **Benefits of Desktop Extension:**
 - ✅ **One-click install** - No JSON editing required
@@ -217,15 +216,6 @@ If you prefer running locally without Docker:
 ```
 
 ## Example Interactions
-
-### Basic API Health Check
-```
-Human: Check if Affise API is available
-
-Claude: I'll check the Affise API status for you.
-> Uses affise_status tool
-✅ API is healthy and responding in 234ms
-```
 
 ### Performance Analytics
 ```
@@ -419,15 +409,6 @@ Ready-to-use prompts for common affiliate marketing tasks:
 ## Available Tools
 
 ### Core API Tools
-
-#### `affise_status`
-Check Affise API health and connectivity.
-```json
-{
-  "name": "affise_status",
-  "arguments": {}
-}
-```
 
 #### `affise_stats`
 Get statistics using natural language queries.

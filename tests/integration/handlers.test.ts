@@ -96,7 +96,7 @@ describe('MCP Handlers Integration', () => {
       // Check for core tools
       expect(TOOL_NAMES).toContain('affise_search_offers');
       expect(TOOL_NAMES).toContain('affise_stats');
-      expect(TOOL_NAMES).toContain('affise_status');
+      expect(TOOL_NAMES).toContain('affise_stats_raw');
     });
 
     it('should have proper tool schemas', () => {

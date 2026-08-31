@@ -138,7 +138,7 @@ export class EnhancedToolHandler {
         : rawConfig;
 
       // Validate configuration (except for status check)
-      if (toolName !== 'affise_status' && !config) {
+      if (!config) {
         return this.errorHandler.createErrorResponse(
           'Configuration not loaded',
           'CONFIG_MISSING',
@@ -203,7 +203,6 @@ export class EnhancedToolHandler {
 
   private getCacheTTL(toolName: string): number {
     const cacheTTLs: Record<string, number> = {
-      affise_status:              60000,    // 1 min
       affise_offer_categories:    600000,   // 10 min
       affise_search_offers:       300000,   // 5 min
       affise_stats:               180000,   // 3 min

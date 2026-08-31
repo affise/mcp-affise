@@ -1,13 +1,11 @@
 /**
- * Handlers for natural-language-driven tools + the no-auth status check.
+ * Handlers for natural-language-driven tools.
  *
- *   affise_status         — health check, no Affise call required
  *   affise_search_offers  — NL offer search via unifiedSearchOffers
  *   affise_stats          — NL stats query via simple-parser → /stats/custom
  *   affise_smart_search   — structured offer search via unifiedSearchOffers
  */
 
-import { createAffiseStatusTool } from '../../tools/affise_status.js';
 import { searchWithNaturalLanguage, unifiedSearchOffers } from '../../tools/unified_affise_offers.js';
 import { getAffiseCustomStats } from '../../tools/affise_custom_stats.js';
 import { compareStats } from '../../tools/affise_stats_compare.js';
@@ -17,30 +15,6 @@ import { OfferSearchResponse, StatsResponse } from '../../types/api-responses.js
 import { getDateRange } from '../../shared/date-utils.js';
 import { calculateSummary, toOfferCards } from './_helpers.js';
 import type { ToolHandler } from './_types.js';
-
-export const handleStatus: ToolHandler = async (_args, config, deps) => {
-  if (!config) {
-    return {
-      status: 'error',
-      message: 'No configuration provided',
-      timestamp: new Date().toISOString(),
-    };
-  }
-  try {
-    const result = await createAffiseStatusTool(config);
-    return {
-      status: result.status,
-      message: result.message,
-      data: result,
-      timestamp: new Date().toISOString(),
-    };
-  } catch (error: any) {
-    console.error('❌ Status check error:', error.message);
-    return deps.errorHandler.createErrorResponse(
-      error.message, 'NETWORK_ERROR', { toolName: 'affise_status' }, error
-    );
-  }
-};
 
 export const handleOfferSearch: ToolHandler = async (args, config, deps): Promise<OfferSearchResponse> => {
   if (!config || !config.baseUrl || !config.apiKey) {

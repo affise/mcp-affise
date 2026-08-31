@@ -113,6 +113,10 @@ describe('unconfigured server surface', () => {
   it('really is unconfigured', () => {
     // If credentials leaked in, tools/list returns the full inventory and
     // every assertion below would be testing the wrong branch.
+    //
+    // The `affise_status` here is NOT the catalogue tool of that name — that
+    // one was dropped. It is the setup-instructions tool the unconfigured
+    // fallback in src/index.ts registers, and it exists only on this branch.
     expect(captured[1]?.result?.tools?.length, 'expected the status-only fallback').toBe(1);
     expect(captured[1].result.tools[0].name).toBe('affise_status');
   });

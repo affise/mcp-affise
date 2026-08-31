@@ -102,7 +102,7 @@ export const STARTS_WITH_LETTER_REGEX = /^[a-zA-Z].*/;
  *     role-exclusive tools (e.g. all /3.0/admin/* are 'admin'), array for
  *     cross-role tools where /3.0/stats/custom accepts both admin and
  *     partner keys (the partner just gets data scoped to their affiliate
- *     id). 'any' = no Affise auth needed (affise_status only).
+ *     id). 'any' = no Affise auth needed; no tool currently uses it.
  *     Empirical access matrix that drove the array form was probed on
  *     2026-05-22 — see memory/project_tier3.4.2_role_taxonomy_rework.md.
  *

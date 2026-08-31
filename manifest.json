@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "affise-mcp-extension",
   "display_name": "Affise Analytics Extension",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Read-only access to your Affise affiliate-marketing account from Claude: statistics, offers, conversions, partners and advertisers.",
   "long_description": "This extension lets Claude read your Affise affiliate marketing account and answer questions about it in plain language: explore offers, query statistics and conversions, analyse trafficback, look up partners and advertisers, generate tracking links, and run partner-side queries. Both natural-language and structured tool calls are supported. Every tool is read-only and declared as such, so nothing in Affise can be created, edited or deleted.",
   "author": {
@@ -46,10 +46,6 @@
     }
   },
   "tools": [
-    {
-      "name": "affise_status",
-      "description": "Health check for the connection to your Affise instance: sends an OPTIONS probe to {base_url}/healthz with the configured API key and reports whether the host answered. Takes no arguments and returns no account data. Use it first when another tool reports a connection or credential problem — it separates \"the Affise host is unreachable or the URL is wrong\" from \"the query itself was rejected\". A successful reply confirms reachability only; it does not prove the API key carries the permissions a given tool needs."
-    },
     {
       "name": "affise_search_offers",
       "description": "Find offers from a plain-English description — \"gaming offers for US mobile traffic\", \"dating offers in the UK\", \"finance offers on CPA\". Category and country names in the query are resolved to Affise ids for you; results come back as offer cards with payouts, targeting and status. Use this for open-ended discovery. When you already have concrete category or country lists to pin, use affise_smart_search; for a single known offer id use affise_get_offer."

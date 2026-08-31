@@ -20,9 +20,10 @@ describe('deriveRole', () => {
   });
 
   it('maps "advertiser" → advertiser (its own role, NOT admin)', () => {
-    // Currently no advertiser-specific
-    // tools in the catalogue → an advertiser session sees only affise_status
-    // (the 'any'-role tool), which is correct fail-closed behaviour.
+    // Every tool in this package is tagged admin or partner, so an
+    // advertiser session registers no tools at all — the last 'any'-role
+    // tool (affise_status) was dropped. Fail-closed is correct: none of
+    // these endpoints accept an advertiser key.
     expect(deriveRole('advertiser')).toBe('advertiser');
   });
 

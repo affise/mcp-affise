@@ -1,21 +1,12 @@
 /**
- * Schemas for natural-language-driven tools and the status check.
+ * Schemas for natural-language-driven tools.
  *
- * These tools share a "free-text query" or "no input" shape — they don't
- * fit into the structured /stats/custom or entity-CRUD groupings.
+ * These tools share a "free-text query" shape — they don't fit into the
+ * structured /stats/custom or entity-CRUD groupings.
  */
 
 import { z } from 'zod';
 import { OFFER_SEARCH_OUTPUT_SCHEMA } from './_shared.js';
-
-export const affise_status = {
-  title: 'Affise Status',
-  description: 'Health check for the connection to your Affise instance: sends an OPTIONS probe to {base_url}/healthz with the configured API key and reports whether the host answered. Takes no arguments and returns no account data. Use it first when another tool reports a connection or credential problem — it separates "the Affise host is unreachable or the URL is wrong" from "the query itself was rejected". A successful reply confirms reachability only; it does not prove the API key carries the permissions a given tool needs.',
-  inputSchema: {} as Record<string, never>,
-  _meta: {
-    'affise/role': 'any',
-  },
-} as const;
 
 export const affise_search_offers = {
   title: 'Search Affise Offers',
