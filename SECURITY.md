@@ -1,5 +1,9 @@
 # Security Policy
 
+What this server receives, stores and forwards — and for how long — is described in the
+[MCP data notice](https://affise.com/affise-mcp-server/privacy/). It covers the self-hosted
+package as well as the hosted endpoint.
+
 ## Reporting a vulnerability
 
 Email **support@affise.com** with `SECURITY` at the start of the subject line. Please report privately first — do not open a public GitHub issue for something exploitable.
