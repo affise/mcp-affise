@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "affise-mcp-extension",
   "display_name": "Affise Analytics Extension",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Read-only access to your Affise affiliate-marketing account from Claude: statistics, offers, conversions, partners and advertisers.",
   "long_description": "This extension lets Claude read your Affise affiliate marketing account and answer questions about it in plain language: explore offers, query statistics and conversions, analyse trafficback, look up partners and advertisers, generate tracking links, and run partner-side queries. Both natural-language and structured tool calls are supported. Every tool is read-only and declared as such, so nothing in Affise can be created, edited or deleted.",
   "author": {

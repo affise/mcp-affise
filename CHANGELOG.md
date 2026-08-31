@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.1.1
+
+Dependency maintenance only — no change to the tool surface, the schemas or the
+wire behaviour.
+
+- **axios 1.19.0 → 1.20.0.** This is the HTTP client every tool calls the Affise
+  API through, so it is the one update here you are actually installing.
+- Dev-only: `@types/node`, `@vitest/coverage-v8` and `tsx` moved to their
+  current minors. They do not ship.
+- The bundled extension is rebuilt against the new tree. Dependabot updates
+  `package.json` and the lockfile but not the `.dxt`, which packs its own
+  `node_modules` — so without this the installable extension would still have
+  run axios 1.19.0.
+
 ## 3.1.0
 
 ### Breaking
