@@ -48,7 +48,8 @@
     "vitest": "^4.1.6"
   },
   "files": [
-    "build"
+    "build",
+    "SECURITY.md"
   ],
   "keywords": [
     "mcp",

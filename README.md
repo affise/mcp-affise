@@ -639,6 +639,8 @@ The server uses a **simplified architecture** focused on direct API integration:
 
 ## Security
 
+Found a vulnerability? **[SECURITY.md](SECURITY.md)** has the reporting address, what to include, and what is in scope. Please report privately rather than opening an issue — and never put a live API key in a report.
+
 ### Best Practices
 - ✅ **API keys in environment variables** (never hardcoded)
 - ✅ **Runtime API key encryption** with AES-256-GCM
@@ -671,7 +673,8 @@ This project is licensed under the MIT License — see [LICENSE](LICENSE).
 - 📖 **Documentation:** Check this README and inline code comments
 - 🐛 **Bug Reports:** Open an issue with detailed reproduction steps
 - 💡 **Feature Requests:** Open an issue with use case description
-- 📧 **Direct Support:** Contact the maintainers
+- 📧 **Direct Support:** support@affise.com
+- 🔒 **Security Issues:** do not open an issue — see [SECURITY.md](SECURITY.md)
 
 ### Useful Resources
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
