@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.2.0
+
+### Added
+
+- **The server now has a logo.** Two things were missing, and they are
+  different mechanisms:
+  - `serverInfo.icons` on `initialize` — the field a client reads to draw
+    something beside the server's name. A stdio server has nowhere to serve an
+    image from, so both icons are embedded as `data:` URIs (the spec allows
+    these alongside `http(s)`). That also means a local install never reaches
+    out to affise.com just to draw a logo. Cost: about 9 KB on the handshake,
+    once per session.
+  - `icon` in the DXT manifest — the picture Claude Desktop shows in its
+    Extensions list. It is a path inside the bundle, so the asset has to sit
+    outside every directory `.dxtignore` drops.
+- Both are 192x192 and 32x32 PNGs, shipped in `assets/`. PNG is the one format
+  a client that renders icons MUST support; the Affise brand SVG is a 110x20
+  wordmark and would letterbox in a square slot, so it is not offered.
+
 ## 3.1.1
 
 Dependency maintenance only — no change to the tool surface, the schemas or the

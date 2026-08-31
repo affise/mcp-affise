@@ -12,6 +12,7 @@ import { SKILL_RESOURCES } from './skills/loader.js';
 import { setupPromptHandlers, PROMPT_NAMES } from './handlers/prompts.js';
 import { ErrorHandlerService } from './services/error-handler-service.js';
 import { SERVER_VERSION } from './version.js';
+import { serverIcons } from './icons.js';
 
 // Initialize error handler for global error sanitization
 const globalErrorHandler = new ErrorHandlerService();
@@ -49,7 +50,8 @@ process.on('SIGTERM', () => {
 const mcpServer = new McpServer(
   {
     name: 'affise-mcp-server',
-    version: SERVER_VERSION
+    version: SERVER_VERSION,
+    icons: serverIcons()
   },
   {
     // No `capabilities` block on purpose. McpServer.registerTool /
