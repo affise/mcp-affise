@@ -5,10 +5,9 @@
 The Affise MCP Server provides these tools for affiliate marketing analysis:
 
 ### ✅ **Core Tools**
-1. **`affise_status`** - Check API health and connectivity
-2. **`affise_stats`** - Get statistics with natural language queries  
-3. **`affise_stats_raw`** - Get raw statistics with specific API parameters
-4. **`affise_search_offers`** - Search offers with natural language queries
+1. **`affise_stats`** - Get statistics with natural language queries  
+2. **`affise_stats_raw`** - Get raw statistics with specific API parameters
+3. **`affise_search_offers`** - Search offers with natural language queries
 
 ### 📊 **Analysis Prompts**
 5. **`analyze_offers`** - Expert offer analysis with recommendations
@@ -57,7 +56,6 @@ When users ask questions, prioritize tools in this order:
 2. **`affise_search_offers`** - For any offer discovery questions
 3. **Analysis prompts** - For detailed analysis and insights
 4. **`affise_stats_raw`** - Only when exact API parameters are needed
-5. **`affise_status`** - For API health checks
 
 ## 🎯 **Usage Examples**
 
@@ -145,7 +143,6 @@ When users ask questions, prioritize tools in this order:
 | Performance data | `affise_stats` | "Show me today's revenue" |
 | Find offers | `affise_search_offers` | "Find gaming offers" |
 | Detailed analysis | Analysis prompts | "Analyze my top offers" |
-| API health | `affise_status` | "Is the API working?" |
 | Technical queries | `affise_stats_raw` | Exact API parameters needed |
 
 ## 🚀 **Summary**

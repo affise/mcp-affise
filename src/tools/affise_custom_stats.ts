@@ -55,8 +55,11 @@ type FieldType =
   | 'ctr' | 'views' | 'ecpm'
   // Gated on config.enable_ad_costs
   | 'costs' | 'margin' | 'roi'
-  // Added by controller when CPC/CPM access is granted and `clicks` is in fields
-  // (or user role = Affiliate). Up to ~21 fields total in the response.
+  // RESPONSE-ONLY: added by the controller when CPC/CPM access is granted and
+  // `clicks` is in fields (or user role = Affiliate). NOT valid as request input
+  // — /3.0/stats/custom validates input against getGoApiFields(), which excludes
+  // them — so they are intentionally absent from STATS_RAW_FIELDS_ENUM. Kept in
+  // this union only so response rows type-check.
   | 'clicks_earnings' | 'clicks_income';
 
 
@@ -209,7 +212,7 @@ export async function getAffiseCustomStats(
 
   // Auto-resolve non-numeric partner clientIds → numeric affiliate_ids.
   // Affise stats filter[partner] only accepts numeric IDs. When the caller
-  // passes a tracking name like "aff_crix", we hit /3.0/admin/partners?search=
+  // passes a tracking name like "aff_demo", we hit /3.0/admin/partners?search=
   // and substitute. Pure-numeric values are passed through untouched (no HTTP).
   const partnerValues = (params as any).partner;
   if (Array.isArray(partnerValues) && partnerValues.some((v: any) => !/^\d+$/.test(String(v)))) {
@@ -255,7 +258,7 @@ export async function getAffiseCustomStats(
 
   // Auto-resolve non-MongoID advertiser/supplier names → MongoID strings.
   // Affise stats filter[advertiser|supplier] expects a 24-char hex MongoID
-  // (e.g. "5dc2ea20b5d12930268b8a2a"). If caller passes a name or tag, hit
+  // (e.g. "507f1f77bcf86cd799439011"). If caller passes a name or tag, hit
   // GET /3.0/admin/advertisers?name=... and substitute the MongoID.
   // Pure-MongoID values pass through untouched.
   for (const field of ['advertiser', 'supplier']) {
@@ -453,10 +456,45 @@ export async function getAffiseCustomStats(
     const totalRecords = Array.isArray(data.stats) ? data.stats.length : 0;
     const pagination = data.pagination || {};
 
+    // Slim the per-row `affiliate` entity to {id, login} before flattening.
+    // The /stats/custom affiliate object ships id/title/email/login/name where
+    // title/login/name are the same string — that's 3 redundant columns in the
+    // partner-sliced grid. id + login is the useful identifier; callers who
+    // need email/etc. drill down via affise_get_partner. Only `affiliate` is
+    // touched — advertiser/offer entities keep their own label fields (an
+    // advertiser has no `login`, so its title is the identifier).
+    const slimAffiliate = (a: any) =>
+      a && typeof a === 'object' && !Array.isArray(a)
+        ? {
+            ...(a.id !== undefined ? { id: a.id } : {}),
+            ...(a.login !== undefined ? { login: a.login } : {}),
+          }
+        : a;
+    // Drop the heavy, non-analytical fields from the per-row `offer` entity:
+    // `url` and `logo` bloat every offer-sliced row and are useless for stats.
+    // Keep id/title/offer_id/status (identifier + label + status). Callers who
+    // need the URL or creative drill down via affise_get_offer.
+    const OFFER_DROP = new Set(['url', 'logo']);
+    const slimOffer = (o: any) =>
+      o && typeof o === 'object' && !Array.isArray(o)
+        ? Object.fromEntries(Object.entries(o).filter(([k]) => !OFFER_DROP.has(k)))
+        : o;
+    // Entities sit under `row.slice.<entity>` (compactTabular emits
+    // `slice.<entity>.*`, so a display layer strips the `slice.` prefix).
+    const stats = Array.isArray(data?.stats)
+      ? data.stats.map((row: any) => {
+          if (!row?.slice || typeof row.slice !== 'object') return row;
+          const slice = { ...row.slice };
+          if ('affiliate' in slice) slice.affiliate = slimAffiliate(slice.affiliate);
+          if ('offer' in slice) slice.offer = slimOffer(slice.offer);
+          return { ...row, slice };
+        })
+      : data?.stats;
+
     // Compact tabular form: flatten + drop empty cols, report drops.
     // Affise stats responses use { stats: [...] }, which compactTabular
     // detects and reshapes. Non-stats payloads pass through unchanged.
-    const compactedData = compactTabular(data);
+    const compactedData = compactTabular({ ...data, stats });
 
     return {
       status: 'ok',
@@ -528,7 +566,7 @@ export async function getAffiseCustomStats(
  * - Zero matches → error "partner not found: <name>".
  * - Multiple matches → error listing candidate ids so the caller can pick.
  *
- * Used by getAffiseCustomStats to make NL queries like "for partner aff_crix"
+ * Used by getAffiseCustomStats to make NL queries like "for partner aff_demo"
  * work transparently — caller doesn't need to do a separate lookup step.
  */
 async function resolvePartnerClientIds(

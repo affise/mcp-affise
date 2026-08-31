@@ -6,7 +6,9 @@
  * rows as plain value arrays.
  *
  * Variant B trade-off:
- * - All-empty columns are dropped (where every row has null/undefined/''/0/false/[])
+ * - All-empty columns are dropped (where every row has null/undefined/''/0/
+ *   false/[] or a string zero like "0"/"0.00" — Affise returns traffic and
+ *   money metrics as strings)
  * - Dropped columns are REPORTED in `dropped_columns` so callers can see
  *   "this metric was requested but never had data" — the same semantic
  *   distinction "I asked, no data came back" stays visible.
@@ -60,8 +62,35 @@ function isEmpty(v: any): boolean {
     v === '' ||
     v === 0 ||
     v === false ||
+    (typeof v === 'string' && /^0(\.0+)?$/.test(v)) ||
     (Array.isArray(v) && v.length === 0)
   );
+}
+
+/**
+ * Recursively drop any property whose key is in `keys` from each record
+ * (and from nested objects/arrays). Used to strip secrets and heavy/low-value
+ * fields out of list payloads BEFORE compactTabular flattens them into
+ * columns — both for security (e.g. partner/manager `api_key`) and to keep
+ * the result under the host's inline tool-result budget.
+ *
+ * Returns fresh objects; the input records are not mutated.
+ */
+export function redactKeys<T>(records: T[], keys: string[]): T[] {
+  const drop = new Set(keys);
+  const scrub = (v: any): any => {
+    if (Array.isArray(v)) return v.map(scrub);
+    if (v && typeof v === 'object') {
+      const out: Record<string, any> = {};
+      for (const [k, val] of Object.entries(v)) {
+        if (drop.has(k)) continue;
+        out[k] = scrub(val);
+      }
+      return out;
+    }
+    return v;
+  };
+  return Array.isArray(records) ? records.map(scrub) : records;
 }
 
 export interface CompactTabularResult {
@@ -152,4 +181,46 @@ export function compactTabular(apiResponse: any): any {
   if (pagination?.per_page !== undefined) result.per_page = pagination.per_page;
 
   return result;
+}
+
+/**
+ * Project a compactTabular grid down to a requested subset of columns.
+ *
+ * A conversion row carries ~77 non-empty columns; 1000 of them blows past the
+ * host's 1 MB tool-result ceiling. Narrowing to ~14 columns shrinks the
+ * payload ~5-6x so the whole result (rows × columns) fits and the model can
+ * consume every row at once (e.g. to build an export). Affise's
+ * `/3.0/stats/conversions` ignores its own `fields` query param, so we project
+ * here — on the already-flattened grid whose column names are exactly the
+ * dotted paths callers use (`offer.id`, `partner.login`).
+ *
+ * Columns come back in the requested order. Field names that don't exist in
+ * the grid (empty/dropped columns, typos) are skipped. If nothing matches the
+ * grid is returned unchanged — better a full result than an empty one.
+ */
+export function projectGridColumns(grid: any, fieldsCsv: string | undefined): any {
+  if (!fieldsCsv || !grid || !Array.isArray(grid.columns) || !Array.isArray(grid.rows)) {
+    return grid;
+  }
+  const want = fieldsCsv.split(',').map(s => s.trim()).filter(Boolean);
+  if (want.length === 0) return grid;
+
+  const idxs: number[] = [];
+  const keptCols: string[] = [];
+  for (const f of want) {
+    const i = grid.columns.indexOf(f);
+    if (i !== -1) { idxs.push(i); keptCols.push(grid.columns[i]); }
+  }
+  if (idxs.length === 0) return grid; // no requested field exists — leave as-is
+
+  const removed = grid.columns.filter((_: string, i: number) => !idxs.includes(i));
+  return {
+    ...grid,
+    columns: keptCols,
+    rows: grid.rows.map((r: any[]) => idxs.map(i => r[i])),
+    dropped_columns: [
+      ...(Array.isArray(grid.dropped_columns) ? grid.dropped_columns : []),
+      ...removed,
+    ],
+  };
 }

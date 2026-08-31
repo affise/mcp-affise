@@ -13,7 +13,18 @@
 
 import axios from 'axios';
 import { getCurrentTimestamp } from '../shared/date-utils.js';
-import { compactTabular } from '../utils/compact-response.js';
+import { compactTabular, projectGridColumns } from '../utils/compact-response.js';
+
+/**
+ * Default column set for the conversions list/export. A raw conversion has
+ * ~77 non-empty columns; returning all of them for 1000 rows blows past the
+ * host's 1 MB tool-result ceiling and is unreadable as a table. This
+ * curated set covers what a conversion list/export actually needs; callers
+ * override it with the `fields` param, and the full record is available via
+ * `affise_get_conversion`. Names are the flattened grid column names.
+ */
+const DEFAULT_CONVERSION_FIELDS =
+  'id,created_at,status,offer.id,offer.title,partner.id,partner.login,country,goal,payouts,revenue,currency,sub1,sub2';
 
 // Affise accepts a numeric status code, but the UI / our model uses names.
 // Mapping per ConversionEntity status constants (Affise API).
@@ -299,7 +310,13 @@ export async function getAffiseConversions(
 
     // Compact tabular: flatten + drop empty cols, report dropped_columns.
     // Conversion records have ~100 fields, ~50% empty on real data → big win.
-    const compactedData = compactTabular(data);
+    // Then project columns down to the caller's `fields` (or the curated
+    // default) — Affise ignores its own `fields` param, so we do it here. This
+    // keeps even 1000-row exports under the host's 1 MB ceiling.
+    const compactedData = projectGridColumns(
+      compactTabular(data),
+      params.fields || DEFAULT_CONVERSION_FIELDS,
+    );
 
     return {
       status: 'ok',
@@ -323,7 +340,7 @@ export async function getAffiseConversions(
     let errorMessage: string;
     if (error.code === 'ECONNREFUSED') errorMessage = 'Unable to connect to Affise conversions server';
     else if (error.code === 'ETIMEDOUT') errorMessage = 'Conversions request timeout exceeded';
-    else if (error.code === 'ENOTFOUND') errorMessage = 'Affise conversions server not found (DNS error)';
+    else if (error.code === 'ENOTFOUND') errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
     else if (error.response) {
       const s = error.response.status;
       if (s === 401) errorMessage = 'Authentication failed - check API key';

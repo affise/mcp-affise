@@ -15,6 +15,7 @@
 
 import axios from 'axios';
 import { getCurrentTimestamp } from '../shared/date-utils.js';
+import { compactTabular } from '../utils/compact-response.js';
 
 export interface TimeToActionParams {
   date_from: string;              // YYYY-MM-DD, required
@@ -107,7 +108,7 @@ export async function getTimeToAction(
     return {
       status: 'ok',
       message: 'Time-to-action data retrieved',
-      data: response.data,
+      data: compactTabular(response.data),
       timestamp: getCurrentTimestamp(),
     };
   } catch (error: any) {
@@ -119,7 +120,7 @@ function mapNetworkError(error: any, label: string) {
   let errorMessage: string;
   if (error.code === 'ECONNREFUSED') errorMessage = 'Unable to connect to Affise server';
   else if (error.code === 'ETIMEDOUT') errorMessage = `${label} request timeout exceeded`;
-  else if (error.code === 'ENOTFOUND') errorMessage = 'Affise server not found (DNS error)';
+  else if (error.code === 'ENOTFOUND') errorMessage = "Affise URL not found — check for typos and that it's your tenant's public API URL";
   else if (error.response) {
     const s = error.response.status;
     const apiErr = error.response.data?.error;

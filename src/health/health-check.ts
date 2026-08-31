@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { realpathSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { loadConfig } from '../config.js';
 import { createAffiseStatusTool } from '../tools/affise_status.js';
 
@@ -65,17 +67,31 @@ async function performHealthCheck(): Promise<HealthCheckResult> {
   return result;
 }
 
-// CLI execution when run directly
-if (require.main === module) {
+// CLI execution when run directly. This package is ESM, so `require.main` is
+// not defined here — comparing this module's URL to argv[1] is the ESM
+// equivalent, and the previous `require.main === module` guard threw a
+// ReferenceError instead of running the check.
+//
+// `import.meta.url` is realpath-resolved by Node's module loader, but
+// `process.argv[1]` is the path as invoked. Whenever that path crosses a
+// symlink — macOS's /tmp -> /private/tmp, a Capistrano-style `current ->
+// releases/<id>` deploy symlink, an `npm link`ed install — the two URLs
+// disagree even though it is the same file, `invokedDirectly` comes out
+// false, and the process exits 0 having done nothing: a worse failure mode
+// than the ReferenceError it replaced, because a 0 exit and empty stdout
+// reads as a passing health check. `realpathSync` on argv[1] before
+// converting it is Node's own documented pattern for this comparison.
+const invokedDirectly =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+
+if (invokedDirectly) {
   performHealthCheck()
     .then(result => {
-      // Output for Docker health check (simple)
-      if (process.argv.includes('--simple')) {
-        process.exit(result.status === 'healthy' ? 0 : 1);
+      // Exit status alone for container health probes.
+      if (!process.argv.includes('--simple')) {
+        console.log(JSON.stringify(result, null, 2));
       }
-      
-      // Detailed output for debugging
-
       process.exit(result.status === 'healthy' ? 0 : 1);
     })
     .catch(error => {

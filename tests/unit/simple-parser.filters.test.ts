@@ -54,6 +54,36 @@ describe('extractFilters', () => {
     const f = extractFilters('country: US');
     expect(f.country).toEqual(['US']);
   });
+
+  it('extracts advertiser MongoId from prose "for advertiser <id>"', () => {
+    const f = extractFilters('Performance by offer for advertiser 507f1f77bcf86cd799439011 last 30 days');
+    expect(f.advertiser).toEqual(['507f1f77bcf86cd799439011']);
+  });
+
+  it('extracts a single-token advertiser name from prose', () => {
+    const f = extractFilters('revenue for advertiser Acme last week');
+    expect(f.advertiser).toEqual(['Acme']);
+  });
+
+  it('extracts a quoted multi-word advertiser name without swallowing the time phrase', () => {
+    const f = extractFilters('Performance by offer for advertiser "Acme Mobile" last 30 days');
+    expect(f.advertiser).toEqual(['Acme Mobile']);
+  });
+
+  it('does not capture stopwords after "advertiser" as a name', () => {
+    const f = extractFilters('show advertiser performance last month');
+    expect(f.advertiser).toBeUndefined();
+  });
+
+  it('extracts supplier prose into the supplier key', () => {
+    const f = extractFilters('stats for supplier 507f1f77bcf86cd799439011 last week');
+    expect(f.supplier).toEqual(['507f1f77bcf86cd799439011']);
+  });
+
+  it('still honours explicit advertiser: value form', () => {
+    const f = extractFilters('advertiser: 507f1f77bcf86cd799439011');
+    expect(f.advertiser).toEqual(['507f1f77bcf86cd799439011']);
+  });
 });
 
 describe('toStatsParams integration', () => {
@@ -79,5 +109,44 @@ describe('toStatsParams integration', () => {
     expect(params.partner).toEqual(['193']);
     expect(params.slice).toContain('affiliate'); // "top 10 partners" → affiliate dimension
     expect(params.period).toBe('lastmonth');
+  });
+});
+
+describe('period-over-period comparison intent', () => {
+  it('flags "this month vs last?" as a comparison with current=thismonth', () => {
+    const parsed = parseQuery('How did the network do this month vs last?');
+    expect(parsed.compare).toBe(true);
+    expect(parsed.time_period).toBe('thismonth');
+  });
+
+  it('reads the current period from the LEFT of "vs" ("this month vs last month")', () => {
+    const parsed = parseQuery('revenue this month vs last month');
+    expect(parsed.compare).toBe(true);
+    expect(parsed.time_period).toBe('thismonth'); // not lastmonth
+  });
+
+  it('infers thisweek from the WoW shorthand and keeps the partner filter', () => {
+    const parsed = parseQuery('WoW for partner 193');
+    expect(parsed.compare).toBe(true);
+    expect(parsed.time_period).toBe('thisweek');
+    const params = toStatsParams(parsed);
+    expect(params.partner).toEqual(['193']);
+  });
+
+  it('handles "this week vs the week before"', () => {
+    const parsed = parseQuery('clicks this week vs the week before');
+    expect(parsed.compare).toBe(true);
+    expect(parsed.time_period).toBe('thisweek');
+  });
+
+  it('handles "last month vs the month before" → current=lastmonth', () => {
+    const parsed = parseQuery('network last month vs the month before');
+    expect(parsed.compare).toBe(true);
+    expect(parsed.time_period).toBe('lastmonth');
+  });
+
+  it('does not flag a plain single-period query', () => {
+    const parsed = parseQuery('revenue last week');
+    expect(parsed.compare).toBeFalsy();
   });
 });

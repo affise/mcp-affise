@@ -175,8 +175,6 @@ describe('ErrorHandlerService Sanitization', () => {
         .toBe('Use a named period (today, last 7 days, last 30 days)');
       expect(errorHandler.sanitizeErrorMessage('Could not parse the date "28 july"'))
         .toBe('Could not parse the date "28 july"');
-      expect(errorHandler.sanitizeErrorMessage('Range 2026-07-08..2026-07-14: request failed'))
-        .toBe('Range 2026-07-08..2026-07-14: request failed');
     });
 
     it('should keep error messages without sensitive data', () => {

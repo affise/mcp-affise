@@ -8,10 +8,9 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 
 ## Features
 
-### 🔧 Tools (23 total)
+### 🔧 Tools (24 total)
 
 **Status & search**
-- **`affise_status`** — Check Affise API connectivity and configuration
 - **`affise_search_offers`** — Search offers with natural-language queries (e.g. *"find gaming offers for US mobile"*)
 - **`affise_smart_search`** 🧠 — Intelligent offer search with auto category/country resolution
 - **`affise_offer_categories`** — List/search offer categories
@@ -21,9 +20,11 @@ A Model Context Protocol (MCP) server that provides access to Affise affiliate m
 **Statistics**
 - **`affise_stats`** — Statistics by natural language (*"top 10 partners by income last week"*)
 - **`affise_stats_raw`** — Structured stats query with `slice` / `fields` / `filter` (Affise `/3.0/stats/custom`)
+- **`affise_stats_compare`** — Period-over-period comparison with the range auto-aligned, so month-to-date compares against the same day-range of the prior period
 - **`affise_conversions_raw`** — Per-event conversion records from `/3.0/stats/conversions`
 - **`affise_get_conversion`** — Fetch a single conversion by id
 - **`affise_trafficback`** — Trafficback reason / partner / geo breakdown
+- **`affise_affiliate_analysis`** — One-call account review for a single affiliate: KPIs, per-offer breakdown, trafficback split and rule-based insights
 - **`affise_retention_rate`** — Retention analytics across periods
 - **`affise_time_to_action`** — Time-to-action distribution analytics
 
@@ -152,7 +153,7 @@ npm run validate-dxt    # Validate package
    - Find "Affise Analytics Extension" in your extensions
    - Set your Affise API URL (e.g., `https://api-yourcompany.affise.com`)
    - Set your Affise API Key
-5. **Test**: Try using the `affise_status` tool in Claude Desktop
+5. **Test**: Ask Claude Desktop for your offer categories
 
 **Benefits of Desktop Extension:**
 - ✅ **One-click install** - No JSON editing required
@@ -215,15 +216,6 @@ If you prefer running locally without Docker:
 ```
 
 ## Example Interactions
-
-### Basic API Health Check
-```
-Human: Check if Affise API is available
-
-Claude: I'll check the Affise API status for you.
-> Uses affise_status tool
-✅ API is healthy and responding in 234ms
-```
 
 ### Performance Analytics
 ```
@@ -417,15 +409,6 @@ Ready-to-use prompts for common affiliate marketing tasks:
 ## Available Tools
 
 ### Core API Tools
-
-#### `affise_status`
-Check Affise API health and connectivity.
-```json
-{
-  "name": "affise_status",
-  "arguments": {}
-}
-```
 
 #### `affise_stats`
 Get statistics using natural language queries.
@@ -637,6 +620,8 @@ The server uses a **simplified architecture** focused on direct API integration:
 
 ## Security
 
+Found a vulnerability? **[SECURITY.md](SECURITY.md)** has the reporting address, what to include, and what is in scope. Please report privately rather than opening an issue — and never put a live API key in a report.
+
 ### Best Practices
 - ✅ **API keys in environment variables** (never hardcoded)
 - ✅ **Runtime API key encryption** with AES-256-GCM
@@ -661,7 +646,7 @@ The server uses a **simplified architecture** focused on direct API integration:
 
 ## License
 
-This project is licensed under the ISC License.
+This project is licensed under the MIT License — see [LICENSE](LICENSE).
 
 ## Support
 
@@ -669,7 +654,8 @@ This project is licensed under the ISC License.
 - 📖 **Documentation:** Check this README and inline code comments
 - 🐛 **Bug Reports:** Open an issue with detailed reproduction steps
 - 💡 **Feature Requests:** Open an issue with use case description
-- 📧 **Direct Support:** Contact the maintainers
+- 📧 **Direct Support:** support@affise.com
+- 🔒 **Security Issues:** do not open an issue — see [SECURITY.md](SECURITY.md)
 
 ### Useful Resources
 - [Model Context Protocol Documentation](https://modelcontextprotocol.io/)

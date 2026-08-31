@@ -1,7 +1,7 @@
 {
   "name": "@affise/mcp-server",
-  "version": "2.1.0",
-  "description": "MCP server for the Affise public API: stdio transport, 23 tools, 6 analysis prompts",
+  "version": "3.1.0",
+  "description": "MCP server for the Affise public API: stdio transport, 24 tools, 6 analysis prompts",
   "type": "module",
   "main": "build/index.js",
   "bin": {
@@ -9,17 +9,18 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "npm run security:audit && tsc && chmod +x build/index.js",
-    "build:unsafe": "tsc && chmod +x build/index.js",
+    "build": "npm run security:audit && tsc && chmod +x build/index.js && mkdir -p build/skills && rm -rf build/skills/content && cp -r src/skills/content build/skills/",
+    "build:unsafe": "tsc && chmod +x build/index.js && mkdir -p build/skills && rm -rf build/skills/content && cp -r src/skills/content build/skills/",
     "prepublishOnly": "npm run build",
     "start": "npm run build && node build/index.js",
+    "health": "node build/health/health-check.js",
     "clean": "rm -rf build dist coverage",
     "rebuild": "npm run clean && npm run build",
-    "test": "vitest run",
+    "test": "npm run build:unsafe && vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "npm run build:unsafe && vitest run --coverage",
     "test:unit": "vitest run tests/unit tests/services",
-    "test:integration": "vitest run tests/integration",
+    "test:integration": "npm run build:unsafe && vitest run tests/integration",
     "security:audit": "npm audit --audit-level moderate",
     "security:fix": "npm audit fix",
     "security:check": "npm outdated && npm audit",
@@ -30,12 +31,14 @@
     "build-dxt": "npm run build && npm prune --omit=dev && npm run package-dxt && npm install --no-audit --no-fund",
     "package-dxt": "npx -y -p @anthropic-ai/dxt dxt pack",
     "validate-dxt": "npx -y -p @anthropic-ai/dxt dxt validate manifest.json",
-    "test-dxt": "npm run build-dxt && npm run validate-dxt"
+    "test-dxt": "npm run build-dxt && npm run validate-dxt",
+    "test:nobuild": "vitest run"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "axios": "^1.15.2",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
@@ -45,7 +48,8 @@
     "vitest": "^4.1.6"
   },
   "files": [
-    "build"
+    "build",
+    "SECURITY.md"
   ],
   "keywords": [
     "mcp",
@@ -55,8 +59,8 @@
     "marketing",
     "analytics"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Affise",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/affise/mcp-affise.git"

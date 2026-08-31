@@ -96,6 +96,39 @@ describe('compactTabular — variant B drop & report', () => {
     expect(out.dropped_columns).toBeUndefined();
   });
 
+  it('drops a column where every row is a string zero ("0"/"0.00" — Affise traffic/money shape)', () => {
+    const out = compactTabular({
+      stats: [
+        { traffic: { raw: '130194299', uniq: '0', revenue: '0.00' }, clicks: 100 },
+        { traffic: { raw: '5321248',   uniq: '0', revenue: '0.00' }, clicks: 50 },
+      ],
+    });
+    expect(out.columns.sort()).toEqual(['clicks', 'traffic.raw']);
+    expect(out.dropped_columns?.sort()).toEqual(['traffic.revenue', 'traffic.uniq']);
+  });
+
+  it('keeps a string-zero column when any row has a non-zero string value', () => {
+    const out = compactTabular({
+      stats: [
+        { country: 'US', revenue: '0.00' },
+        { country: 'UK', revenue: '12.50' },
+      ],
+    });
+    expect(out.columns.sort()).toEqual(['country', 'revenue']);
+    expect(out.dropped_columns).toBeUndefined();
+  });
+
+  it('does not treat zero-prefixed identifiers like "007" as empty', () => {
+    const out = compactTabular({
+      stats: [
+        { country: 'US', sub1: '007' },
+        { country: 'UK', sub1: '007' },
+      ],
+    });
+    expect(out.columns.sort()).toEqual(['country', 'sub1']);
+    expect(out.dropped_columns).toBeUndefined();
+  });
+
   it('reports every dropped column in dropped_columns', () => {
     const out = compactTabular({
       stats: [

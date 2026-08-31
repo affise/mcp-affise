@@ -96,6 +96,31 @@ jobs:
         id: current
         run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      # Runs AFTER any bump and BEFORE publish, which is the only window that
+      # matters. The suite's own version assertions run in "Run test suite"
+      # above — before the bump — so they compare the pre-bump version to
+      # itself and pass. With release != none, npm version moves package.json
+      # past the manifest and nothing downstream notices until ci.yml runs on
+      # the pushed commit, by which point npm publish is permanent.
+      - name: Refuse to publish a version the manifest disagrees with
+        run: |
+          PKG="$(node -p "require('./package.json').version")"
+          MANIFEST="$(node -p "require('./manifest.json').version")"
+          PKG_LICENSE="$(node -p "require('./package.json').license")"
+          MANIFEST_LICENSE="$(node -p "require('./manifest.json').license")"
+          echo "package.json  $PKG ($PKG_LICENSE)"
+          echo "manifest.json $MANIFEST ($MANIFEST_LICENSE)"
+          if [ "$PKG" != "$MANIFEST" ]; then
+            echo "::error::package.json is $PKG but manifest.json is $MANIFEST." \
+                 "Publishing now would ship a DXT manifest naming a different version." \
+                 "If you meant to release as-is, run this workflow with release=none."
+            exit 1
+          fi
+          if [ "$PKG_LICENSE" != "$MANIFEST_LICENSE" ]; then
+            echo "::error::package.json licence is $PKG_LICENSE but manifest.json says $MANIFEST_LICENSE."
+            exit 1
+          fi
+
       - name: Publish to npm
         # prepublishOnly (npm run build) is skipped: we already built above
         # with build:unsafe, and running the full build again here would

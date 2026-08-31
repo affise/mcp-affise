@@ -4,53 +4,7 @@
 
 import { getDateRange } from '../shared/date-utils.js';
 import { SecureInputValidator } from './secure-input-validator.js';
-
-/**
- * Allowed `slice` (grouping) dimensions for /3.0/stats/custom.
- * Mirrors Affise API StatisticsEntity::getAllowedSliced(). Admin-only values
- * (advertiser, manager) are included; the server enforces role at request time.
- * Exported so the tool schema and this validator share one list (no drift).
- */
-export const STATS_RAW_SLICES: readonly string[] = [
-  // Time
-  'year', 'quarter', 'month', 'week', 'day', 'hour',
-  // Offer / goal / geo
-  'offer', 'goal', 'country', 'city',
-  // OS / device / browser
-  'os', 'os_version', 'device', 'device_model', 'device_type',
-  'browser', 'browser_version',
-  // Pages / network
-  'landing', 'prelanding', 'isp', 'conn_type',
-  // Managers (available to all roles, NOT admin-only)
-  'advertiser_manager_id', 'affiliate_manager_id',
-  // Partner-side / other
-  'affiliate', 'affiliate_id', 'smart_id', 'trafficback_reason',
-  // Sub IDs sub1..sub30 (all valid as slice/order, filter capped at sub8)
-  ...Array.from({ length: 30 }, (_, i) => `sub${i + 1}`),
-  // Admin-only (server returns 403 for non-admin roles)
-  'advertiser', 'manager',
-];
-
-/**
- * Allowed `fields` (metrics) for /3.0/stats/custom request input.
- * Mirrors Affise API CustomStat::getGoApiFields() — the exact set the endpoint
- * validates against ("Request has invalid fields, available only: ..."):
- *   • base GOAPI_FIELDS — always available;
- *   • ctr/views/ecpm — gated by config.allow_impressions;
- *   • costs/margin/roi — gated by config.enable_ad_costs (admin).
- * Excludes clicks_earnings/clicks_income: those are legacy LT-endpoint RESPONSE
- * columns, NOT accepted as request input — the endpoint 400s on them.
- */
-export const STATS_RAW_FIELDS: readonly string[] = [
-  // Base — GOAPI_FIELDS
-  'clicks', 'hosts', 'earnings', 'income', 'noincome', 'payouts',
-  'conversions', 'cr', 'affiliate_epc', 'ratio', 'epc',
-  'trafficback', 'afprice',
-  // Gated by config.allow_impressions
-  'ctr', 'views', 'ecpm',
-  // Gated by config.enable_ad_costs (admin)
-  'costs', 'margin', 'roi',
-];
+import { STATS_RAW_SLICE_ENUM, STATS_RAW_FIELDS_ENUM } from '../handlers/schemas/_shared.js';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -319,7 +273,7 @@ export class ValidationService {
         const sanitizedSlice = sliceResult.sanitizedValue as string[];
         const invalidSlices = sanitizedSlice.filter((s: string) => !this.isValidSlice(s));
         if (invalidSlices.length > 0) {
-          errors.push(`Invalid slice values: ${invalidSlices.join(', ')}. Valid values: ${STATS_RAW_SLICES.join(', ')}`);
+          errors.push(`Invalid slice values: ${invalidSlices.join(', ')}. Valid values: ${STATS_RAW_SLICE_ENUM.join(', ')}`);
         } else {
           sanitizedParams.slice = sanitizedSlice;
         }
@@ -344,7 +298,7 @@ export class ValidationService {
         const sanitizedFields = fieldsResult.sanitizedValue as string[];
         const invalidFields = sanitizedFields.filter((f: string) => !this.isValidField(f));
         if (invalidFields.length > 0) {
-          errors.push(`Invalid field values: ${invalidFields.join(', ')}. Valid values: ${STATS_RAW_FIELDS.join(', ')}`);
+          errors.push(`Invalid field values: ${invalidFields.join(', ')}. Valid values: ${STATS_RAW_FIELDS_ENUM.join(', ')}`);
         } else {
           sanitizedParams.fields = sanitizedFields;
         }
@@ -518,9 +472,21 @@ export class ValidationService {
       const from = new Date(normalized.date_from);
       const to = new Date(normalized.date_to);
       if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-        const monthsDiff = (to.getFullYear() - from.getFullYear()) * 12 +
-                           (to.getMonth() - from.getMonth());
-        if (monthsDiff > 6) {
+        // UTC accessors throughout. `new Date('2026-03-01')` parses as UTC
+        // midnight, so reading it back with the local getMonth()/getDate()
+        // shifts every date a day earlier anywhere west of UTC — which
+        // rejected legal six-month ranges across the Americas and let
+        // six-months-plus-a-day through. Mixing the two is the bug; the
+        // input is UTC, so the arithmetic is too.
+        const monthsDiff = (to.getUTCFullYear() - from.getUTCFullYear()) * 12 +
+                           (to.getUTCMonth() - from.getUTCMonth());
+        // Day-of-month matters: calendar months alone let 2026-01-01 →
+        // 2026-07-30 through as "6 months" when it is 210 days, and the
+        // request then failed server-side instead of here. Landing on a later
+        // day of the month means the sixth month is already over.
+        const exceedsSixMonths = monthsDiff > 6 ||
+                                 (monthsDiff === 6 && to.getUTCDate() > from.getUTCDate());
+        if (exceedsSixMonths) {
           throw new Error('Date range exceeds 6 months (Affise MAX_DATERANGE_MONTHS)');
         }
       }
@@ -596,20 +562,27 @@ export class ValidationService {
    * (non-admin user perspective). `advertiser` is admin-only and excluded.
    */
   private isValidSlice(slice: string): boolean {
-    // Single source of truth — see STATS_RAW_SLICES (module top).
-    return STATS_RAW_SLICES.includes(slice);
+    // Single source of truth: the same enum advertised in the tool's input
+    // schema (handlers/schemas/_shared.ts), derived from Affise API
+    // StatisticsEntity::getAllowedSliced(). Admin-only values (advertiser,
+    // manager) are included for type completeness; the server enforces role
+    // at request time. Validating against the schema enum prevents drift
+    // between what the model is told is valid and what we accept.
+    return (STATS_RAW_SLICE_ENUM as readonly string[]).includes(slice);
   }
 
   /**
    * Validate field values.
    *
-   * Single source of truth — see STATS_RAW_FIELDS (module top), which mirrors
-   * Affise CustomStat::getGoApiFields(). A previous stale hardcoded list here
-   * rejected schema-valid fields (earnings, payouts, noincome) while permitting
-   * internal names absent from the API, forcing clients into trial-and-error.
+   * Single source of truth: STATS_RAW_FIELDS_ENUM — the same list advertised
+   * in the tool's input schema and returned by Affise (`CustomStat::GOAPI_FIELDS`,
+   * see docs/affise-stats-custom-reference.md). Previously this used a stale
+   * hardcoded allow-list that rejected schema-valid fields like `earnings`,
+   * `payouts`, and `noincome` while permitting internal names absent from the
+   * schema — forcing clients into trial-and-error retries.
    */
   private isValidField(field: string): boolean {
-    return STATS_RAW_FIELDS.includes(field);
+    return (STATS_RAW_FIELDS_ENUM as readonly string[]).includes(field);
   }
 
   /**

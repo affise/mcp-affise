@@ -1,7 +1,7 @@
 /**
  * Regression coverage for the six parser fixes shipped together:
  *
- *   A. Non-numeric partner names in prose ("for affiliate aff_crix") get
+ *   A. Non-numeric partner names in prose ("for affiliate aff_demo") get
  *      extracted (and sub<N> tokens are NOT misread as partner clientIds).
  *   B. Multi-dimensional slice lists: "by X and Y", "by X, Y, Z", "by X Y Z".
  *   C. "dynamics" / "over time" / "trend" injects `day` into the slice.
@@ -18,9 +18,9 @@ import { parseQuery, extractFilters, toStatsParams } from '../../src/types/simpl
 describe('simple-parser multi-issue fixes (client report 2026-05-14)', () => {
 
   describe('A. non-numeric partner extraction', () => {
-    it('extracts aff_crix as partner from "for affiliate aff_crix"', () => {
-      expect(extractFilters('top 10 offer by charge for affiliate aff_crix last week'))
-        .toEqual({ partner: ['aff_crix'] });
+    it('extracts aff_demo as partner from "for affiliate aff_demo"', () => {
+      expect(extractFilters('top 10 offer by charge for affiliate aff_demo last week'))
+        .toEqual({ partner: ['aff_demo'] });
     });
 
     it('extracts hyphenated clientId "client-abc-123"', () => {
