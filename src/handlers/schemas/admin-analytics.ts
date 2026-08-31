@@ -151,7 +151,7 @@ export const affise_stats_compare = {
 
 export const affise_trafficback = {
   title: 'Affise Trafficback Stats',
-  description: 'Get trafficback statistics and analysis',
+  description: 'Traffic that Affise redirected away instead of counting toward an offer, broken down for the period (GET /3.0/stats/getbytrafficback). Returns the per-row breakdown plus an analysis_summary carrying the total, the leading rejection reasons and the affected countries. Filter by country, offer, advertiser, partner, device or os; the period defaults to last7days when none is given. Use it to explain a gap between the traffic a partner reports sending and the clicks Affise recorded, to locate mistargeted traffic, and before concluding that an offer underperforms. For one affiliate end to end, affise_affiliate_analysis already folds this in.',
   inputSchema: {
     date_from: z.string().optional().describe('Start date (YYYY-MM-DD)'),
     date_to: z.string().optional().describe('End date (YYYY-MM-DD)'),

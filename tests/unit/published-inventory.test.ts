@@ -36,6 +36,20 @@ describe('published inventory matches the served registry', () => {
     }
   });
 
+  it('shows the same description on install that the server sends at runtime', () => {
+    // The manifest carried an independently hand-written description for all
+    // 25 tools: Claude Desktop showed one text on install while `tools/list`
+    // sent another, and some manifest lines claimed behaviour the schema did
+    // not. Truthiness alone could not see it — only equality can.
+    const drifted = (manifest.tools ?? [])
+      .filter((t: { name: string; description: string }) => {
+        const schema = (TOOL_SCHEMAS as Record<string, { description?: string }>)[t.name];
+        return schema && schema.description !== t.description;
+      })
+      .map((t: { name: string }) => t.name);
+    expect(drifted, 'manifest descriptions that disagree with the served ones').toEqual([]);
+  });
+
   it('documents every served tool in the README', () => {
     const documented = new Set(
       [...readme.matchAll(/- \*\*`(affise_[a-z_]+)`\*\*/g)].map((m) => m[1]),

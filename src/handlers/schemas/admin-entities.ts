@@ -21,7 +21,7 @@ import {
 
 export const affise_offer_categories = {
   title: 'Affise Offer Categories',
-  description: 'Get all available offer categories from Affise',
+  description: 'List the offer categories configured on this Affise account (GET /3.0/offer/categories), optionally narrowed by ids or a title search and paginated. Use it to resolve a category name to the id that offer search and filtering expect, to confirm which categories exist before filtering on one, or to enumerate the account catalogue. Reference data only — it returns no traffic or revenue figures.',
   inputSchema: {
     ids: z.array(z.string()).optional().describe('Specific category IDs to retrieve'),
     search: z.string().optional().describe('Search term to filter categories by title'),

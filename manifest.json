@@ -41,103 +41,103 @@
   "tools": [
     {
       "name": "affise_status",
-      "description": "Check Affise configuration status and connectivity"
+      "description": "Health check for the connection to your Affise instance: sends an OPTIONS probe to {base_url}/healthz with the configured API key and reports whether the host answered. Takes no arguments and returns no account data. Use it first when another tool reports a connection or credential problem — it separates \"the Affise host is unreachable or the URL is wrong\" from \"the query itself was rejected\". A successful reply confirms reachability only; it does not prove the API key carries the permissions a given tool needs."
     },
     {
       "name": "affise_search_offers",
-      "description": "Search and filter offers using natural language queries"
+      "description": "Find offers from a plain-English description — \"gaming offers for US mobile traffic\", \"dating offers in the UK\", \"finance offers on CPA\". Category and country names in the query are resolved to Affise ids for you; results come back as offer cards with payouts, targeting and status. Use this for open-ended discovery. When you already have concrete category or country lists to pin, use affise_smart_search; for a single known offer id use affise_get_offer."
     },
     {
       "name": "affise_stats",
-      "description": "Natural-language statistics queries (revenue, conversions, traffic)"
+      "description": "Get statistics with natural language. ENGLISH ONLY — translate non-English asks first, and write dates as ISO YYYY-MM-DD (named month phrases like \"1-7 July\" are NOT parsed). Supports: \"by/breakdown by <dim> [and <dim>, ...]\"; \"dynamics/over time/trend\" auto-adds `day` to slice; \"top N <dim> by <metric>\" sets limit + sort. Partner names like \"aff_demo\" are auto-resolved to numeric affiliate_id. A date or period is REQUIRED — there is no implicit default, and a query without one is rejected. Time periods: today/yesterday/last week/this month/last 30 days, a single day (\"2026-07-28\", \"28.07.2026\"), or an explicit \"from YYYY-MM-DD to YYYY-MM-DD\". MULTIPLE explicit ISO ranges in one ask (\"from 2026-07-01 to 2026-07-07 and from 2026-07-08 to 2026-07-14\") run one pull per range → data.multi_period with a periods[] array (max 6 ranges). Period-over-period (\"this month vs last\", \"WoW/MoM\", \"compared to the week before\") auto-routes to affise_stats_compare (two range-aligned pulls → current/baseline totals + deltas). Cost / charge / spend → `income` field (admin-only `costs` is gated — use affise_stats_raw). For precise sub-ID/partner exports or filters this NL layer can miss, prefer affise_stats_raw with explicit slice/filter."
     },
     {
       "name": "affise_stats_raw",
-      "description": "Structured statistics query with slice/fields/filter (/3.0/stats/custom)"
+      "description": "Raw stats via Affise /3.0/stats/custom. Machine-readable limits live in `_meta` (affise/max_date_range_days, affise/sub_filter_cap, affise/admin_only_fields). What the description still has to say:\n1. Filter ID types — MCP server auto-resolves names → IDs:\n   - `filter.partner` / `affiliate` — numeric affiliate_id; pass e.g. \"aff_demo\" and we resolve via /3.0/admin/partners.\n   - `filter.offer` — numeric offer_id; resolve names via affise_search_offers.\n   - `filter.advertiser` / `supplier` — 24-char hex MongoID; pass a name and we resolve via /3.0/admin/advertisers.\n2. `order[]` vocabulary differs from `fields[]`. Sort keys: total_revenue, total_count, total_null, raw, uniq, confirmed_earning/_count/_revenue, pending_count/_revenue, declined_count/_revenue, hold_count/_revenue (+admin: advertiser, affiliate, manager). NOT field names like \"income\" or \"clicks\".\n3. Sort direction via `orderType` (\"asc\"|\"desc\"). DO NOT prefix order values with \"-\".\n4. `costs` is also incompatible with os/sub*/geo slices server-side.\n5. One call = one date range. For MULTIPLE ranges (e.g. week 1 vs week 2, or each month separately), call this tool once per range. Prefer this tool over affise_stats for non-English asks and for precise partner/sub-ID exports."
     },
     {
       "name": "affise_offer_categories",
-      "description": "Browse and search offer categories"
+      "description": "List the offer categories configured on this Affise account (GET /3.0/offer/categories), optionally narrowed by ids or a title search and paginated. Use it to resolve a category name to the id that offer search and filtering expect, to confirm which categories exist before filtering on one, or to enumerate the account catalogue. Reference data only — it returns no traffic or revenue figures."
     },
     {
       "name": "affise_trafficback",
-      "description": "Trafficback analytics and reason breakdown"
+      "description": "Traffic that Affise redirected away instead of counting toward an offer, broken down for the period (GET /3.0/stats/getbytrafficback). Returns the per-row breakdown plus an analysis_summary carrying the total, the leading rejection reasons and the affected countries. Filter by country, offer, advertiser, partner, device or os; the period defaults to last7days when none is given. Use it to explain a gap between the traffic a partner reports sending and the clicks Affise recorded, to locate mistargeted traffic, and before concluding that an offer underperforms. For one affiliate end to end, affise_affiliate_analysis already folds this in."
     },
     {
       "name": "affise_smart_search",
-      "description": "Intelligent offer search across name, category, country, payouts"
+      "description": "Offer search that pairs a free-text query with explicit category and country lists, and pulls a larger sample (up to 100 offers) intended for analysis rather than browsing. Category names are corrected to the closest real category unless auto_correct is false, and near matches are suggested when nothing matches exactly. Prefer affise_search_offers when the whole request is one plain-English sentence; prefer this one when you have concrete categories or countries to constrain, or when the result feeds an analysis prompt. Enumerate valid category names with affise_offer_categories."
     },
     {
       "name": "affise_conversions_raw",
-      "description": "Per-event conversion records from /3.0/stats/conversions"
+      "description": "Get raw conversion records from Affise /3.0/stats/conversions. Returns individual conversion rows (one per event) with raw fields: ip, country, ua, os, device, click_time, status, sub1..sub8, custom_field_1..15, etc. Max limit 1000. Date range ≤ 365 days (≤ 63 days in raw_export mode). Use this when you need per-conversion detail; use affise_stats_raw for aggregated metrics."
     },
     {
       "name": "affise_get_offer",
-      "description": "Fetch detail for a single offer by id"
+      "description": "Get full detail for a single offer by ID (GET /3.0/offer/{id}). Use after affise_search_offers or when an offer_id is known from a conversion row. Returns the offer object with id, title, status, payouts, targeting, etc."
     },
     {
       "name": "affise_get_conversion",
-      "description": "Fetch detail for a single conversion by id"
+      "description": "Get full detail for a single conversion by its MongoId (GET /3.0/stats/conversionsbyid). Admin only. Use as drill-down from affise_conversions_raw — when a row has interesting fields and you need the complete record (offer object, all custom_field_1..15, price, etc.)."
     },
     {
       "name": "affise_list_partners",
-      "description": "Paginated affiliate (partner) list — admin role"
+      "description": "List affiliates (partners) with pagination and filters (GET /3.0/admin/partners). Admin only. Useful for \"show me partners from country X with status active\" or to enumerate the affiliate roster."
     },
     {
       "name": "affise_get_partner",
-      "description": "Fetch detail for a single affiliate by id — admin role"
+      "description": "Get full detail for a single affiliate by ID (GET /3.0/admin/partner/{id}). Admin only. Use to drill down from stats slice=\"partner\" or affise_list_partners."
     },
     {
       "name": "affise_list_advertisers",
-      "description": "Paginated advertiser list"
+      "description": "List advertisers with pagination and filters (GET /3.0/admin/advertisers). Useful for enumerating advertisers or finding one by name. Pass with_offers=true to include offers_count per advertiser."
     },
     {
       "name": "affise_get_advertiser",
-      "description": "Fetch detail for a single advertiser by MongoId"
+      "description": "Get full detail for a single advertiser by ID (GET /3.0/admin/advertiser/{id}). Advertiser ID is a 24-char MongoId hex string (e.g. \"507f1f77bcf86cd799439011\"), NOT an integer."
     },
     {
       "name": "affise_offer_tracking_link",
-      "description": "Generate a tracking link for offer × affiliate × sub IDs"
+      "description": "Generate a tracking link for a specific offer + affiliate (POST /3.0/admin/offer/{offerId}/tracking-link). Admin/manager only. Validates that the affiliate is allowed to run the offer based on its privacy settings. Optional sub1..sub8 are appended to the resulting URL as query params."
     },
     {
       "name": "affise_retention_rate",
-      "description": "Retention analytics across periods"
+      "description": "Retention rate / cohort analysis for a specific offer (GET /3.0/stats/retentionrate). For a given base_event (goal name), returns retention buckets across follow-up events. Admin only. All of date_from, date_to, offer_id, base_event, events are REQUIRED. Use this when /stats/custom cannot answer cohort-style retention questions. Event names must match goals configured on the offer."
     },
     {
       "name": "affise_time_to_action",
-      "description": "Time-to-action distribution analytics"
+      "description": "Time-to-action analysis — click → conversion latency distribution for a specific offer (GET /3.0/stats/time-to-action). Admin only. Returns rows already enriched with affiliate name/email. Requires CTIT feature enabled on the tenant; will return a clear \"feature not enabled\" error if disabled."
     },
     {
       "name": "affise_partner_profile",
-      "description": "Calling affiliate's own profile — partner role"
+      "description": "Get the authenticated partner's own profile (GET /3.1/partner/me). Returns id, email, manager, permissions, balance summary, theme. REQUIRES a partner (affiliate) API key — admin keys return 403."
     },
     {
       "name": "affise_partner_balance",
-      "description": "Calling affiliate's own balance — partner role"
+      "description": "Get the authenticated partner's multi-currency balance (GET /3.0/balance). Returns balance keyed by type (withdrawal, pending, ...) and currency (USD, EUR, ...). REQUIRES a partner API key."
     },
     {
       "name": "affise_partner_news",
-      "description": "News feed visible to the calling affiliate — partner role"
+      "description": "List platform announcements visible to the partner (GET /3.0/news). Uses skip/limit pagination (NOT page). Pass fixed=true for pinned items only. A 404 from the API is normalised to an empty list. Embedded base64 images in news bodies are replaced with `[IMAGE]` markers BY DEFAULT — pass `strip_images=false` to keep raw image bytes. REQUIRES a partner (affiliate) API key."
     },
     {
       "name": "affise_partner_offers",
-      "description": "Offers visible to the calling affiliate — partner role"
+      "description": "List offers AVAILABLE to the authenticated partner (GET /3.0/partner/offers) — offers the partner can request access to. The catalog can be very large (100K+ on big tenants); narrow with `search`, `countries`, `categories`, or `int_id` before raising `limit`. Default 100, max 500. Use affise_partner_live_offers for currently-running offers. REQUIRES a partner (affiliate) API key."
     },
     {
       "name": "affise_partner_live_offers",
-      "description": "Live (active) offers for the calling affiliate — partner role"
+      "description": "List offers the authenticated partner is CURRENTLY RUNNING (GET /3.0/partner/live-offers). Same filter shape as affise_partner_offers but scoped to active connections — usually a small portfolio. REQUIRES a partner (affiliate) API key."
     },
     {
       "name": "affise_partner_find_subs",
-      "description": "Discover sub-ID values the affiliate has used — partner role"
+      "description": "Discover distinct sub values in the partner's own data (GET /3.0/stats/find-subs). Pick ONE sub key (sub1..sub5) — backend ignores all but the first. Use for exploratory analytics: \"what sub3 values do I have\" → then drill via affise_stats_raw. REQUIRES a partner (affiliate) API key."
     },
     {
       "name": "affise_stats_compare",
-      "description": "Compare aggregate stats for a period against an auto-aligned prior period, via two /3.0/stats/custom pulls"
+      "description": "Compare aggregate stats for a period against an auto-aligned prior period, via two /3.0/stats/custom pulls. Handles the month-to-date trap: `thismonth` is compared against the SAME day-range of last month (1–7 Jul vs 1–7 Jun), not a full month. Returns `current`/`baseline` totals + per-metric `delta` (abs + pct for counts/money; percentage-point `pp` for rates) + an alignment `note`. Alignment by period family: this/last month·quarter·year shift one unit back (day clamped); week shifts 7 days; rolling windows (last7days/last30days) use the equal window immediately before. Pass `period` (e.g. \"thismonth\", \"lastweek\") OR explicit `date_from`/`date_to` (baseline becomes the equal preceding window). `filter` mirrors affise_stats_raw (partner/offer/advertiser/country/os/sub1..8/…); names auto-resolve."
     },
     {
       "name": "affise_affiliate_analysis",
-      "description": "Composite account analysis for one affiliate: fans out stats-by-offer + trafficback + partner detail for the period, returns KPIs (confirmed conversions/earnings, active offers, tr"
+      "description": "Composite account analysis for one affiliate: fans out stats-by-offer + trafficback + partner detail for the period, returns KPIs (confirmed conversions/earnings, active offers, trafficback total), a per-offer breakdown, a trafficback reason split, and rule-based insights (overcap, mistargeting, high decline rate, scale candidates). partner_id must be numeric — resolve logins via affise_list_partners first. Call this tool — instead of assembling the pulls manually — for \"analyze partner/affiliate N\", account-review requests, and when the user types \"auto_analysis\" / \"auto-analysis\" / \"/auto_analysis\" for a specific partner (that pseudo-command maps here)."
     }
   ],
   "prompts": [

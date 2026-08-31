@@ -10,7 +10,7 @@ import { OFFER_SEARCH_OUTPUT_SCHEMA } from './_shared.js';
 
 export const affise_status = {
   title: 'Affise Status',
-  description: 'Check Affise API status',
+  description: 'Health check for the connection to your Affise instance: sends an OPTIONS probe to {base_url}/healthz with the configured API key and reports whether the host answered. Takes no arguments and returns no account data. Use it first when another tool reports a connection or credential problem — it separates "the Affise host is unreachable or the URL is wrong" from "the query itself was rejected". A successful reply confirms reachability only; it does not prove the API key carries the permissions a given tool needs.',
   inputSchema: {} as Record<string, never>,
   _meta: {
     'affise/role': 'any',
@@ -19,7 +19,7 @@ export const affise_status = {
 
 export const affise_search_offers = {
   title: 'Search Affise Offers',
-  description: 'Search offers with natural language (IMPROVED VERSION) - Supports complex queries like "Find gaming offers for US mobile traffic", "Show me dating offers", "Search for finance offers in UK"',
+  description: 'Find offers from a plain-English description — "gaming offers for US mobile traffic", "dating offers in the UK", "finance offers on CPA". Category and country names in the query are resolved to Affise ids for you; results come back as offer cards with payouts, targeting and status. Use this for open-ended discovery. When you already have concrete category or country lists to pin, use affise_smart_search; for a single known offer id use affise_get_offer.',
   inputSchema: {
     query: z.string().describe('Natural language search query with automatic category resolution and country detection'),
   },
@@ -47,7 +47,7 @@ export const affise_stats = {
 
 export const affise_smart_search = {
   title: 'Affise Smart Offer Search',
-  description: 'Intelligent offer search with automatic category resolution and suggestions',
+  description: 'Offer search that pairs a free-text query with explicit category and country lists, and pulls a larger sample (up to 100 offers) intended for analysis rather than browsing. Category names are corrected to the closest real category unless auto_correct is false, and near matches are suggested when nothing matches exactly. Prefer affise_search_offers when the whole request is one plain-English sentence; prefer this one when you have concrete categories or countries to constrain, or when the result feeds an analysis prompt. Enumerate valid category names with affise_offer_categories.',
   inputSchema: {
     query: z.string().describe('Natural language search query (e.g., "Find gaming offers for mobile traffic")'),
     categories: z.array(z.string()).optional().describe('Category names or IDs to search in'),
