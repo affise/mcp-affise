@@ -121,3 +121,38 @@ describe('every place that states a version agrees', () => {
     expect(pkg.license).toBe(manifest.license);
   });
 });
+
+/**
+ * The listing copy is a capability claim, and a reviewer checks it against the
+ * tool set. The manifest promised "advanced analytics and automation" and
+ * offered "manage partners/advertisers" on a surface where no code path
+ * creates, edits or deletes anything, and carried "automation" as a keyword.
+ */
+describe('listing copy matches what the tools can do', () => {
+  const copy = `${manifest.description} ${manifest.long_description}`.toLowerCase();
+
+  it('does not promise automation on a read-only surface', () => {
+    for (const word of ['automate', 'automation', 'automating']) {
+      expect(copy, `manifest copy promises "${word}"`).not.toContain(word);
+    }
+    expect(
+      manifest.keywords.map((k: string) => k.toLowerCase()),
+      'manifest keywords',
+    ).not.toContain('automation');
+  });
+
+  it('does not offer to manage anything', () => {
+    for (const claim of ['manage partner', 'manage advertiser', 'manage offer']) {
+      expect(copy, `manifest copy offers to "${claim}"`).not.toContain(claim);
+    }
+  });
+
+  it('gives the listing the contact and provenance fields it renders', () => {
+    // Absent, the directory card shows an extension with no support route and
+    // no way back to the source.
+    for (const field of ['homepage', 'documentation', 'support'] as const) {
+      expect(manifest[field], `manifest.${field}`).toMatch(/^https:\/\//);
+    }
+    expect(manifest.repository?.url, 'manifest.repository.url').toMatch(/^https:\/\//);
+  });
+});

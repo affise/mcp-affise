@@ -3,11 +3,18 @@
   "name": "affise-mcp-extension",
   "display_name": "Affise Analytics Extension",
   "version": "3.0.0",
-  "description": "Connect Claude to your Affise affiliate platform for advanced analytics and automation",
-  "long_description": "This extension enables Claude to interact with your Affise affiliate marketing platform: explore offers, query statistics and conversions, analyse trafficback, manage partners/advertisers, generate tracking links, and run partner-side queries. Both natural-language and structured tool calls are supported.",
+  "description": "Read-only access to your Affise affiliate-marketing account from Claude: statistics, offers, conversions, partners and advertisers.",
+  "long_description": "This extension lets Claude read your Affise affiliate marketing account and answer questions about it in plain language: explore offers, query statistics and conversions, analyse trafficback, look up partners and advertisers, generate tracking links, and run partner-side queries. Both natural-language and structured tool calls are supported. Every tool is read-only and declared as such, so nothing in Affise can be created, edited or deleted.",
   "author": {
     "name": "Affise"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/affise/mcp-affise"
+  },
+  "homepage": "https://affise.com/affise-mcp-server/",
+  "documentation": "https://github.com/affise/mcp-affise#readme",
+  "support": "https://github.com/affise/mcp-affise/issues",
   "server": {
     "type": "node",
     "entry_point": "build/index.js",
@@ -299,8 +306,8 @@
     "affiliate",
     "marketing",
     "analytics",
-    "automation",
-    "performance"
+    "performance",
+    "model-context-protocol"
   ],
   "license": "MIT",
   "compatibility": {
