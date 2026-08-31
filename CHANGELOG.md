@@ -1,5 +1,52 @@
 # Changelog
 
+## 3.1.0
+
+### Breaking
+
+- **`affise_status` is no longer served.** It probed `OPTIONS {base_url}/healthz`,
+  an unauthenticated liveness path, so it answered identically for a valid and an
+  invalid API key — the failure people actually hit. Nothing replaces it: every
+  other tool already maps the same transport errors (`ECONNREFUSED`,
+  `ETIMEDOUT`, `ENOTFOUND`) onto a readable result envelope, so a broken
+  connection tells you so on the call you meant to make.
+
+  Two things that look like exceptions and are not. A client with no credentials
+  configured still sees a tool called `affise_status` — that is the
+  setup-instructions tool registered under the same name, and it is all an
+  unconfigured client gets. And `performHealthCheck()` still uses the probe
+  internally; only the tool is gone.
+
+  Worth knowing before you upgrade: this was the last tool tagged as usable by
+  any role, so a key with the advertiser role now registers **no tools at all**
+  rather than one that told it nothing. Every endpoint in this package needs an
+  admin or a partner key.
+
+  This supersedes the 3.0.0 note below promising nothing had been removed by
+  name — 3.0.0 was never published, so upgrading from 2.x brings both releases
+  at once, and this removal is part of that jump.
+
+### Changed
+
+- Five tool descriptions were too thin to choose between — `affise_status`
+  (now gone), `affise_search_offers`, `affise_smart_search`,
+  `affise_offer_categories` and `affise_trafficback`. Rewritten to say what the
+  tool returns and when to reach for it, with the search/smart-search overlap
+  stated in both. The DXT manifest now shows the same text your client is sent
+  at runtime; it previously carried a separate hand-written description for
+  every tool.
+- The extension listing no longer promises "automation" or offers to "manage"
+  partners and advertisers. Every tool is read-only and annotated as such.
+- The manifest gained `repository`, `homepage`, `documentation` and `support`,
+  so the listing has a support route and a way back to the source.
+
+### Added
+
+- `SECURITY.md` — how to report a vulnerability, what is in scope, and what
+  this server can and cannot do. It ships in the npm tarball.
+- A data notice covering what the server receives, stores, forwards and for
+  how long, linked from the security policy.
+
 ## 3.0.0
 
 Re-baselined onto the current internal server. The runtime underneath changed
