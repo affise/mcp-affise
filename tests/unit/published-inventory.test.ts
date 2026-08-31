@@ -68,6 +68,24 @@ describe('published inventory matches the served registry', () => {
     const pkgCount = String(pkg.description).match(/(\d+) tools/);
     expect(pkgCount, 'package.json description no longer states a tool count').not.toBeNull();
     expect(Number(pkgCount![1]), 'package.json description tool count').toBe(count);
+
+    // SECURITY.md counts the surface twice — how many are GET reads, and how
+    // many carry readOnlyHint. Dropping affise_status updated README, manifest
+    // and package.json and left both of these a tool behind.
+    const security = readFileSync(resolve(__dirname, '../..', 'SECURITY.md'), 'utf8');
+
+    const WORDS: Record<string, number> = {
+      'Twenty-one': 21, 'Twenty-two': 22, 'Twenty-three': 23,
+      'Twenty-four': 24, 'Twenty-five': 25, 'Twenty-six': 26,
+    };
+    const getReads = security.match(/(\w+(?:-\w+)?) tools are `GET` reads/);
+    expect(getReads, 'SECURITY.md no longer states a GET-read count').not.toBeNull();
+    expect(WORDS[getReads![1]], `SECURITY.md GET-read count ("${getReads![1]}")`)
+      .toBe(count - 1); // every tool but affise_offer_tracking_link, which POSTs
+
+    const annotated = security.match(/All (\d+) are annotated `readOnlyHint`/);
+    expect(annotated, 'SECURITY.md no longer states an annotated count').not.toBeNull();
+    expect(Number(annotated![1]), 'SECURITY.md readOnlyHint count').toBe(count);
   });
 });
 
