@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.2.1
+
+### Fixed
+
+- **The Docker image would not build.** `npm run build` begins with
+  `npm audit`, so building the image required npm's advisory API to answer; a
+  slow route to it failed the build outright. The Dockerfile now uses
+  `build:unsafe`, the same choice CI and the publish workflow already make —
+  advisories are Dependabot's job. It was the only place still running the
+  audit at build time.
+- **A container built from this repository served no icons.** `assets/` was
+  never copied into either build stage, so `initialize` came back with an
+  empty `icons` array. Both stages copy it now.
+- **The data notice link in `SECURITY.md` was dead.** The notice is published
+  at `affise.com/affise-mcp-privacy/`; this file pointed at a nested URL that
+  404s, and since `SECURITY.md` ships in the tarball, the broken link went out
+  with 3.2.0.
+
 ## 3.2.0
 
 ### Added

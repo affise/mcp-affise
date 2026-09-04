@@ -1,6 +1,6 @@
 {
   "name": "@affise/mcp-server",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "MCP server for the Affise public API: stdio transport, 24 tools, 6 analysis prompts",
   "type": "module",
   "main": "build/index.js",
