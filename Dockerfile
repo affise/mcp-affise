@@ -12,9 +12,13 @@ RUN npm install
 # Copy source code and config
 COPY src /app/src
 COPY tsconfig.json /app/tsconfig.json
+COPY assets /app/assets
 
-# Build the TypeScript project
-RUN npm run build
+# Build the TypeScript project.
+# build:unsafe skips `npm audit`, the same choice ci.yml and publish.yml make:
+# advisories are Dependabot's job, and reaching npm's advisory API from inside
+# a build container turns any network hiccup into a failed image build.
+RUN npm run build:unsafe
 
 # Install production dependencies in separate step
 RUN npm ci --ignore-scripts --omit-dev
@@ -29,6 +33,7 @@ WORKDIR /app
 
 # Copy built application from builder stage
 COPY --from=builder /app/build /app/build
+COPY --from=builder /app/assets /app/assets
 COPY --from=builder /app/package.json /app/package.json
 COPY --from=builder /app/package-lock.json /app/package-lock.json
 COPY --from=builder /app/node_modules /app/node_modules
