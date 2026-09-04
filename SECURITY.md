@@ -1,7 +1,7 @@
 # Security Policy
 
 What this server receives, stores and forwards — and for how long — is described in the
-[MCP data notice](https://affise.com/affise-mcp-server/privacy/). It covers the self-hosted
+[MCP data notice](https://affise.com/affise-mcp-privacy/). It covers the self-hosted
 package as well as the hosted endpoint.
 
 ## Reporting a vulnerability
