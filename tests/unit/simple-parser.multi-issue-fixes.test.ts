@@ -13,7 +13,7 @@
  * Empirical proof of each fix lives in scripts/repro-client-bug.ts.
  */
 import { describe, it, expect } from 'vitest';
-import { parseQuery, extractFilters, toStatsParams } from '../../src/types/simple-parser';
+import { parseQuery, extractFilters, toStatsParams } from '../../src/types/simple-parser.js';
 
 describe('simple-parser multi-issue fixes (client report 2026-05-14)', () => {
 

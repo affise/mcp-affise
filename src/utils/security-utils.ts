@@ -2,6 +2,8 @@
  * Security Utilities - Memory management and secure operations
  */
 
+import { randomBytes } from 'crypto';
+
 /**
  * Securely clear sensitive data from memory
  * Best effort approach - not guaranteed on all platforms
@@ -64,8 +66,7 @@ export function maskSensitiveData(data: string, visibleChars: number = 4): strin
  * Generate secure random string
  */
 export function generateSecureRandom(length: number = 32): string {
-  const crypto = require('crypto');
-  return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
+  return randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
 }
 
 /**
